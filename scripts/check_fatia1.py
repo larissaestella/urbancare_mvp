@@ -39,6 +39,13 @@ p = stop("SP-0412")
 assert p["count"] == 26 and round(p["count"] / p["board_rate"]) == 17
 assert len([a for a in call("GET", "/alerts") if a["closed_at"] is None]) == 3
 print("ok: Demo em Seg 18:42 pausado:", o)
+snap = call("GET", "/snapshot")
+assert [(x["id"], x["status"], x["enroute"]) for x in snap["alerts"]] == [
+    ("SP-0412", "critico", False), ("SP-0071", "critico", False), ("SP-0233", "critico", True), ("SP-0587", "atencao", False)], snap["alerts"]
+assert snap["overview"]["vs_avg_pct"] == 18 and len(snap["map"]) == 14 and len(snap["hourly"]) == 18
+call("POST", "/ingest/readings", {"stop_id": "SP-0412", "ts": "2026-08-31T18:42:00-03:00", "count": 3})
+assert stop("SP-0412")["count"] == 26, "leitura repetida mexeu na lotação"
+print("ok: snapshot da Visão geral confere com o render (lista, +18%, mapa, gráfico)")
 
 call("POST", "/sim/clock", {"multiplier": 30, "paused": False})
 time.sleep(4)  # ~2 min de sim: pontos em alerta seguem fixos

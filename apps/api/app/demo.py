@@ -12,11 +12,19 @@ PEAK_CURVE = 1.7  # CURVE[18] do simulador
 # (stop_id, lotação, espera em min): 3 críticos do render + Rebouças; os outros 3 em atenção vêm dos fillers
 CRITICAL = [("SP-0412", 26, 17), ("SP-0071", 24, 15), ("SP-0233", 22, 14)]
 ATTENTION = [("SP-0587", 18, 12)]
-EXTRA_ATTENTION = [(19, 11), (17, 12), (16, 10)]
+EXTRA_ATTENTION = [(17, 11), (16, 12), (15, 10)]  # abaixo de Rebouças (18): ela fica em 4º na lista, como no render
 CRIT_OVER_MIN = {"SP-0412": 9, "SP-0071": 7, "SP-0233": 6}  # há quanto tempo está acima de 20
 ENROUTE_STOP = "SP-0233"
-# posições no mapa estilizado (0-100): 7 em alerta + 8 normais
-MAP_XY = {"SP-0412": (14, 22), "SP-0071": (58, 55), "SP-0233": (39, 55), "SP-0587": (78, 8)}
+# ingest trava stop_state antes de readings; o reset segue a mesma ordem para não dar deadlock
+LOCK_STATE = "LOCK TABLE stop_state IN EXCLUSIVE MODE"
+# posições no mapa estilizado (0-100), medidas no render 01: 3 críticos, 3 atenção (o 3º extra fica fora do recorte), 8 normais
+MAP_XY = {"SP-0412": (14, 20), "SP-0233": (40, 55), "SP-0071": (86, 55), "SP-0587": (76, 36)}
+EXTRA_XY = [(66, 20), (14, 80)]
+NORMAL_XY = [(40, 20), (51, 20), (6, 39), (54, 39), (27, 55), (31, 81), (66, 81), (92, 81)]
+# histórico horário da rede (4 semanas, só a média) para o gráfico e o "+18% vs. média do horário"
+CURVE = [0.1, 0.05, 0.05, 0.05, 0.1, 0.3, 0.7, 1.4, 1.6, 1.1, 0.8, 0.8, 0.9, 0.8, 0.8, 0.9, 1.1, 1.5, 1.7, 1.3, 0.8, 0.5, 0.3, 0.2]  # = sim
+VS_AVG = 0.18
+HOURS = range(5, 23)
 
 
 def build(stop_ids: list[str], seed: int = 11) -> dict:
@@ -47,13 +55,17 @@ def build(stop_ids: list[str], seed: int = 11) -> dict:
     for sid, d in out.items():
         d["arrival_rate"] = d["board_rate"] * 0.95 / PEAK_CURVE  # no pico da tarde o ponto drena de leve
         d["over_min"] = CRIT_OVER_MIN.get(sid)
-    for sid, xy in zip(fillers[:8], [(26, 40), (30, 6), (44, 8), (6, 43), (27, 79), (43, 79), (59, 79), (88, 78)]):
+    for sid, xy in [*zip(fillers, NORMAL_XY), *MAP_XY.items(), *zip(extra_attn, EXTRA_XY)]:
         out[sid]["xy"] = xy
-    for sid, xy in MAP_XY.items():
-        out[sid]["xy"] = xy
-    for sid, (x, y) in zip(list(extra_attn), [(54, 8), (70, 20), (17, 79)]):
-        out[sid]["xy"] = (x, y)
     return out
+
+
+def hourly(seed: int = 18) -> list[tuple[int, int, int | None]]:
+    """(hora, média 4 semanas, hoje) de 05h a 22h. Média das 18h = 1.284 / 1,18; hoje só até 17h (18h é o ao vivo)."""
+    rng = random.Random(seed)
+    avg18 = round(PEOPLE / (1 + VS_AVG))
+    return [(h, round(avg18 * CURVE[h] / PEAK_CURVE), round(avg18 * CURVE[h] / PEAK_CURVE * rng.uniform(1.04, 1.16)) if h < T0.hour else None)
+            for h in HOURS]
 
 
 async def load(conn) -> None:
@@ -62,8 +74,10 @@ async def load(conn) -> None:
     ids = [r["id"] for r in await cur.fetchall()]
     d = build(ids)
     async with conn.transaction():
-        await conn.execute("TRUNCATE readings, alerts, dispatches")
+        await conn.execute(LOCK_STATE)
+        await conn.execute("TRUNCATE readings, alerts, dispatches, hourly_network")
         async with conn.cursor() as c:
+            await c.executemany("INSERT INTO hourly_network(hour, avg_4w, today) VALUES (%s,%s,%s)", hourly())
             await c.executemany(
                 "UPDATE stops SET arrival_rate=%s, board_rate=%s, steady=%s, svg_x=%s, svg_y=%s WHERE id=%s",
                 [(v["arrival_rate"], v["board_rate"], v["steady"], *(v.get("xy") or (None, None)), sid) for sid, v in d.items()])

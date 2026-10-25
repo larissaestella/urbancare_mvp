@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 from collections import deque
@@ -6,6 +7,7 @@ from datetime import datetime
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import StreamingResponse
 from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, ValidationError
@@ -71,6 +73,8 @@ async def ingest(request: Request):
             row = await cur.fetchone()
             if row is None:
                 raise HTTPException(404, "ponto desconhecido")
+            if row["last_ts"] is not None and r.ts <= row["last_ts"]:
+                return {"accepted": True}  # repetida, fora de ordem ou de antes de um reset: não mexe na lotação
             await conn.execute("INSERT INTO readings(stop_id, ts, count) VALUES (%s, %s, %s) ON CONFLICT DO NOTHING",
                                (r.stop_id, r.ts, r.count))
             new, event = evaluate(StopState(row["last_ts"], row["over_since"], row["alert_active"]), r.count, r.ts)
@@ -99,6 +103,7 @@ async def reset_scenario(pool) -> None:
     """Zera o histórico de simulação para o tempo poder voltar. O seed do cenário Demo (Fatia 1) entra aqui."""
     async with pool.connection() as conn:
         async with conn.transaction():
+            await conn.execute(demo.LOCK_STATE)
             await conn.execute("TRUNCATE readings, alerts, dispatches")
             await conn.execute("UPDATE stop_state SET last_ts = NULL, over_since = NULL, alert_active = false")
     commands.clear()
@@ -108,24 +113,66 @@ async def reset_scenario(pool) -> None:
 async def scenario_demo(request: Request):
     """Reinicia sempre no cenário Demo: trunca, semeia, relógio em T0 e pausado, sim recarrega."""
     clock.pause()
+    clock.jump(demo.T0)  # antes do load: um /sim/poll no meio não pode avançar despachos com a hora antiga
     async with request.app.state.pool.connection() as conn:
         await demo.load(conn)
-    clock.jump(demo.T0)
     commands.clear()
     commands.append({"type": "reload"})
     return {"clock": clock.snapshot(), "overview": await get_overview(request)}
+
+
+async def overview_of(conn, rows: list[dict]) -> dict:
+    now = clock.now()  # relógio já está em BRT
+    cur = await conn.execute(
+        "SELECT count(*) AS n FROM dispatches WHERE (created_at AT TIME ZONE 'America/Sao_Paulo')::date = %s", (now.date(),))
+    extras = (await cur.fetchone())["n"]
+    cur = await conn.execute("SELECT avg_4w FROM hourly_network WHERE hour = %s", (now.hour,))
+    avg = await cur.fetchone()
+    return overview.compute(rows, extras, avg and avg["avg_4w"])
 
 
 @app.get("/overview")
 async def get_overview(request: Request):
     async with request.app.state.pool.connection() as conn:
         cur = await conn.execute("SELECT st.count, s.board_rate, st.alert_active FROM stop_state st JOIN stops s ON s.id = st.stop_id")
-        rows = await cur.fetchall()
-        day = clock.now().date()  # relógio já está em BRT
+        return await overview_of(conn, await cur.fetchall())
+
+
+ALERT_ROWS = 4
+
+
+@app.get("/snapshot")
+async def get_snapshot(request: Request):
+    """Tudo o que a Visão geral mostra, num só objeto: é o que o /stream envia a cada segundo."""
+    async with request.app.state.pool.connection() as conn:
         cur = await conn.execute(
-            "SELECT count(*) AS n FROM dispatches WHERE (created_at AT TIME ZONE 'America/Sao_Paulo')::date = %s", (day,))
-        extras = (await cur.fetchone())["n"]
-    return overview.compute(rows, extras)
+            "SELECT s.id, s.name, s.board_rate, s.svg_x, s.svg_y, st.count, st.alert_active, "
+            "(SELECT min(line_id) FROM stop_lines sl WHERE sl.stop_id = s.id) AS line, "
+            "EXISTS (SELECT 1 FROM dispatches d WHERE d.stop_id = s.id AND d.status = %s) AS enroute "
+            "FROM stops s JOIN stop_state st ON st.stop_id = s.id", (dispatch.A_CAMINHO,))
+        rows = await cur.fetchall()
+        ov = await overview_of(conn, rows)
+        cur = await conn.execute("SELECT hour, avg_4w, today FROM hourly_network ORDER BY hour")
+        hours = await cur.fetchall()
+    stops = [dict(id=r["id"], name=r["name"], line=r["line"], count=r["count"], x=r["svg_x"], y=r["svg_y"],
+                  wait_min=round(overview.stop_wait(r["count"], r["board_rate"])), enroute=r["enroute"],
+                  status=overview.status(r["count"], r["alert_active"])) for r in rows]
+    rank = {"critico": 0, "atencao": 1}
+    alerts = sorted((s for s in stops if s["status"] in rank), key=lambda s: (rank[s["status"]], -s["count"]))
+    return {"clock": clock.snapshot(), "overview": ov, "alerts": alerts[:ALERT_ROWS],
+            "map": [s for s in stops if s["x"] is not None], "hourly": hours}
+
+
+@app.get("/stream")
+async def stream(request: Request):
+    """SSE: um evento "snapshot" por segundo de parede (leituras, alertas, despachos e relógio juntos)."""
+    async def events():
+        while not await request.is_disconnected():
+            snap = await get_snapshot(request)
+            yield f"event: snapshot\ndata: {json.dumps(snap, default=str)}\n\n"
+            await asyncio.sleep(1)
+    return StreamingResponse(events(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
 @app.get("/sim/clock")

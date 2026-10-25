@@ -52,3 +52,8 @@ CREATE TABLE IF NOT EXISTS dispatches (
     status     text NOT NULL,
     boards     integer NOT NULL
 );
+CREATE TABLE IF NOT EXISTS hourly_network (
+    hour   smallint PRIMARY KEY,   -- 5..22
+    avg_4w integer NOT NULL,       -- média das 4 semanas (também é a previsão)
+    today  integer                 -- horas já fechadas do dia do cenário
+);

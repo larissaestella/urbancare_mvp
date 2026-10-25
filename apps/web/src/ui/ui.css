@@ -54,7 +54,8 @@
 .totem { width: 240px; background: var(--totem-ink); color: var(--ink-quiet); display: flex; flex-direction: column;
   padding: var(--s-24) var(--s-16); min-height: 560px; }
 .totem__logo { display: flex; align-items: center; gap: var(--s-12); color: #fff; margin-bottom: var(--s-32); }
-.totem__mark { width: 32px; height: 32px; background: var(--signal-yellow); border-radius: var(--r-chip); }
+.totem__mark { width: 34px; height: 34px; flex: none; }
+.totem__name { font: 700 22px/1 var(--font-display); }
 .totem__group { margin-bottom: var(--s-12); }
 .totem__nav { position: relative; display: flex; flex-direction: column; gap: 2px; padding-left: 12px; }
 .totem__nav::before { content: ""; position: absolute; left: 13px; top: 12px; bottom: 12px; width: 2px; background: var(--ink-rule); }
@@ -65,4 +66,6 @@
 .nav-item[aria-current="page"] { background: var(--signal-yellow); color: var(--totem-ink); font-weight: 600; }
 .nav-item[aria-current="page"] .nav-item__dot { border-radius: 1px; background: var(--totem-ink); border-color: var(--totem-ink); }
 .privacy { margin-top: auto; background: var(--ink-raised); border-top: 3px solid var(--status-green); border-radius: var(--r-plate);
-  padding: var(--s-12) var(--s-16); color: #fff; display: flex; align-items: center; gap: var(--s-8); }
+  padding: var(--s-12) var(--s-16); color: #fff; display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-8); }
+.privacy .t-small-strong { color: var(--status-green-on-ink); font-size: 14px; }
+.privacy__body { flex-basis: 100%; color: var(--ink-quiet); font-size: 12px; }

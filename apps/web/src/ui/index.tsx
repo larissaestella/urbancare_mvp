@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { forwardRef, type ReactNode } from "react";
 import "./ui.css";
 
 export type Status = "normal" | "atencao" | "critico";
@@ -71,9 +71,8 @@ export function TitlePlate({ title, meta, right }: { title: string; meta?: React
   );
 }
 
-export function Button({ variant = "primary", ...p }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" }) {
-  return <button {...p} className={`btn btn--${variant}`} />;
-}
+export const Button = forwardRef<HTMLButtonElement, React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" }>(
+  ({ variant = "primary", ...p }, ref) => <button {...p} ref={ref} className={`btn btn--${variant}`} />);
 
 export function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label: string }) {
   return <button role="switch" aria-checked={on} aria-label={label} className="toggle" onClick={() => onChange(!on)} />;
@@ -104,24 +103,32 @@ export function KpiStrip({ cells }: { cells: { label: string; value: string; del
   );
 }
 
-export function Sidebar({ items, active }: { items: string[]; active: string }) {
+export function Sidebar({ items, active, group = "Painel", onNavigate }: { items: string[]; active: string; group?: string; onNavigate?: (item: string) => void }) {
   return (
     <aside className="totem">
-      <div className="totem__logo"><span className="totem__mark" /><span className="t-title">UrbanFlow</span></div>
-      <div className="t-overline totem__group">Operação</div>
+      <div className="totem__logo">
+        <svg className="totem__mark" viewBox="0 0 32 32" aria-hidden="true">
+          <rect width="32" height="32" rx="2" fill="var(--signal-yellow)" />
+          <path d="M10 7h12v11H14v7h-4z" fill="var(--totem-ink)" /><rect x="14" y="10" width="5" height="2" fill="var(--signal-yellow)" />
+          <rect x="14" y="14" width="5" height="2" fill="var(--signal-yellow)" />
+        </svg>
+        <span className="totem__name">UrbanFlow</span>
+      </div>
+      <div className="t-overline totem__group">{group}</div>
       <nav className="totem__nav">
         {items.map((i) => (
-          <button key={i} className="nav-item" aria-current={i === active ? "page" : undefined}>
+          <button key={i} className="nav-item" aria-current={i === active ? "page" : undefined} onClick={() => onNavigate?.(i)}>
             <span className="nav-item__dot" />{i}
           </button>
         ))}
       </nav>
       <div className="privacy">
         <svg width="14" height="16" viewBox="0 0 14 16" aria-hidden="true">
-          <rect x="1" y="7" width="12" height="8" fill="#fff" />
-          <path d="M3.5 7V5a3.5 3.5 0 0 1 7 0v2" fill="none" stroke="#fff" strokeWidth="1.6" />
+          <rect x="1" y="7" width="12" height="8" fill="var(--status-green-on-ink)" />
+          <path d="M3.5 7V5a3.5 3.5 0 0 1 7 0v2" fill="none" stroke="var(--status-green-on-ink)" strokeWidth="1.6" />
         </svg>
         <span className="t-small-strong">Contagem anônima</span>
+        <p className="privacy__body">Nenhuma imagem é armazenada. Só números saem do ponto.</p>
       </div>
     </aside>
   );
