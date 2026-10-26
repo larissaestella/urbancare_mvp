@@ -8,14 +8,16 @@ import { createRoot } from "react-dom/client";
 import Bastidor from "./Bastidor";
 import Conversao from "./Conversao";
 import Detail from "./Detail";
+import Frota from "./Frota";
 import Landing from "./Landing";
 import Overview from "./Overview";
 import Primitives from "./Primitives";
 import Publicidade from "./Publicidade";
+import Relatorios from "./Relatorios";
 
 const ROUTES: Record<string, () => JSX.Element> = {
   "/dev/primitives": Primitives, "/bastidor": Bastidor, "/landing": Landing, "/landing/metricas": Conversao,
-  "/publicidade": Publicidade,
+  "/publicidade": Publicidade, "/frota": Frota, "/relatorios": Relatorios,
 };
 const Screen = ROUTES[location.pathname] ?? (location.pathname.startsWith("/pontos/") ? Detail : Overview);
 

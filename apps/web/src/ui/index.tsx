@@ -45,7 +45,25 @@ export function HighlightPill({ children }: { children: ReactNode }) {
   );
 }
 
-export const LineChip = ({ line }: { line: string }) => <span className="chip">{line}</span>;
+export function OkPill({ children }: { children: ReactNode }) {
+  return (
+    <span className="pill pill--normal">
+      <StatusShape status="normal" color="#fff" />
+      {children}
+    </span>
+  );
+}
+
+export function LockIcon() {
+  return (
+    <svg width="14" height="16" viewBox="0 0 14 16" aria-hidden="true">
+      <rect x="1" y="7" width="12" height="8" fill="var(--status-green-on-ink)" />
+      <path d="M3.5 7V5a3.5 3.5 0 0 1 7 0v2" fill="none" stroke="var(--status-green-on-ink)" strokeWidth="1.6" />
+    </svg>
+  );
+}
+
+export const LineChip =({ line }: { line: string }) => <span className="chip">{line}</span>;
 
 export function Plate({ title, right, critical, children }: { title: string; right?: ReactNode; critical?: boolean; children: ReactNode }) {
   return (
@@ -123,10 +141,7 @@ export function Sidebar({ items, active, group = "Painel", onNavigate }: { items
         ))}
       </nav>
       <div className="privacy">
-        <svg width="14" height="16" viewBox="0 0 14 16" aria-hidden="true">
-          <rect x="1" y="7" width="12" height="8" fill="var(--status-green-on-ink)" />
-          <path d="M3.5 7V5a3.5 3.5 0 0 1 7 0v2" fill="none" stroke="var(--status-green-on-ink)" strokeWidth="1.6" />
-        </svg>
+        <LockIcon />
         <span className="t-small-strong">Contagem anônima</span>
         <p className="privacy__body">Nenhuma imagem é armazenada. Só números saem do ponto.</p>
       </div>
