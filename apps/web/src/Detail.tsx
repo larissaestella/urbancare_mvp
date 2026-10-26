@@ -6,7 +6,7 @@ import "./overview.css";
 import "./detail.css";
 
 /* Detalhe do ponto (render 02). Ao vivo: lotação, espera, status e extra a caminho (snapshot). O resto é verbatim do render:
-   não há modelo de permanência, de próximo ônibus nem histórico semanal/mensal no protótipo. */
+   não há modelo de permanência nem de próximo ônibus. Semanal/Mensal são ilustrativos (PEAK_WEEK/PEAK_MONTH). */
 const STOP = "SP-0412";
 const TITLE = "Av. Paulista, 1578 — sentido Consolação";
 const LINES = ["875A", "177H", "6450"]; // o seed só liga a 875A (ela é a linha do alerta na Visão geral)
@@ -16,6 +16,9 @@ const DWELL = [["0-2 min", 18], ["2-5 min", 34], ["5-10 min", 27], ["10-15 min",
 // pessoas no ponto a cada 15 min, 14:00 → 18:30 (render 02); o ponto final é a lotação ao vivo
 const HISTORY = [8, 9, 11, 10, 9, 12, 14, 16, 15, 13, 12, 11, 10, 11, 13, 15, 19, 23, 25];
 const T0_MIN = 18 * 60 + 42;
+// Semanal/Mensal: ilustrativos (pedido do Rafael, 26/10), coerentes com a curva diária: [rótulo, pico, min acima do limite]
+const PEAK_WEEK = [["Seg", 27, 38], ["Ter", 24, 22], ["Qua", 25, 27], ["Qui", 26, 31], ["Sex", 28, 44], ["Sáb", 14, 0], ["Dom", 9, 0]] as const;
+const PEAK_MONTH = [["03–09/08", 24, 118], ["10–16/08", 25, 131], ["17–23/08", 26, 149], ["24–30/08", 26, 162]] as const;
 
 export default function Detail() {
   const snap = useSnapshot();
@@ -227,8 +230,42 @@ function LoadPlate({ count, simNow }: { count: number; simNow: string }) {
   return (
     <Plate title="Lotação ao longo do tempo" right={<Segmented options={[...RANGES]} value={range} onChange={setRange} />}>
       {range === "Diária" ? <LoadCurve count={count} now={Math.max(minuteOf(simNow), T0_MIN)} />
-        : <p className="dt-sub dt-sub--empty">Histórico {range.toLowerCase()} entra com os dados reais do piloto.</p>}
+        : range === "Semanal" ? <PeakBars bars={PEAK_WEEK} sub="Pico de pessoas no ponto por dia · semana 24/08 – 30/08" />
+        : <PeakBars bars={PEAK_MONTH} sub="Pico médio dos dias úteis por semana · agosto" />}
     </Plate>
+  );
+}
+
+/** Pico por período (ilustrativo, ancorado no render: a 875A estoura o limite de 20 nos dias úteis, fim de semana fica abaixo). */
+function PeakBars({ bars, sub }: { bars: readonly (readonly [string, number, number])[]; sub: string }) {
+  const W = 508, BASE = 150, TOP = 12, max = 30, X0 = 56, step = (W - X0) / bars.length, bw = Math.min(56, step * 0.6);
+  const y = (v: number) => BASE - (v / max) * (BASE - TOP);
+  const over = bars.filter(([, v]) => v > LIMIT).length;
+  return (
+    <>
+      <p className="dt-sub">{sub} · linha tracejada = limite de {LIMIT}</p>
+      <svg className="dt-chart" viewBox={`0 0 ${W} 180`} role="img" aria-label={`${sub}: ${bars.map(([l, v]) => `${l} ${v}`).join(", ")}`}>
+        {[10, 30].map((v) => <line key={v} x1="0" x2={W} y1={y(v)} y2={y(v)} stroke="var(--concrete-rule)" />)}
+        {bars.map(([label, v, h], i) => {
+          const x = X0 + i * step + (step - bw) / 2;
+          return (
+            <g key={label} className="dt-peak">
+              <rect x={x} y={y(v)} width={bw} height={BASE - y(v)} fill={v > LIMIT ? "var(--status-red)" : "var(--totem-ink)"} />
+              <text x={x + bw / 2} y={y(v) - 8} className="dt-chart__pct">{v}</text>
+              <text x={x + bw / 2} y={174} className="dt-chart__x">{label}</text>
+              <title>{`${label}: pico de ${v} pessoas · ${h} min acima do limite`}</title>
+            </g>
+          );
+        })}
+        <line x1="0" x2={W} y1={y(LIMIT)} y2={y(LIMIT)} stroke="var(--status-red)" strokeWidth="1.5" strokeDasharray="6 4" />
+        <rect x="0" y={y(LIMIT) - 21} width="48" height="16" fill="var(--status-red)" />
+        <text x="5" y={y(LIMIT) - 9} className="dt-chart__limit">limite {LIMIT}</text>
+        <line x1="0" x2={W} y1={BASE} y2={BASE} stroke="var(--totem-ink)" strokeWidth="2" />
+      </svg>
+      <p className="dt-peak__sum">
+        {over} de {bars.length} acima do limite · {bars.reduce((a, [, , h]) => a + h, 0)} min acima do limite no período
+      </p>
+    </>
   );
 }
 
