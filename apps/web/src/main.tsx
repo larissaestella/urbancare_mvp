@@ -6,6 +6,7 @@ import "@fontsource/barlow-semi-condensed/700.css";
 import "./tokens.css";
 import { createRoot } from "react-dom/client";
 import Bastidor from "./Bastidor";
+import Configuracoes from "./Configuracoes";
 import Conversao from "./Conversao";
 import Detail from "./Detail";
 import Frota from "./Frota";
@@ -17,7 +18,7 @@ import Relatorios from "./Relatorios";
 
 const ROUTES: Record<string, () => JSX.Element> = {
   "/dev/primitives": Primitives, "/bastidor": Bastidor, "/landing": Landing, "/landing/metricas": Conversao,
-  "/publicidade": Publicidade, "/frota": Frota, "/relatorios": Relatorios,
+  "/publicidade": Publicidade, "/frota": Frota, "/relatorios": Relatorios, "/configuracoes": Configuracoes,
 };
 const Screen = ROUTES[location.pathname] ?? (location.pathname.startsWith("/pontos/") ? Detail : Overview);
 
