@@ -61,12 +61,10 @@ export default function Landing() {
         <p className="lp__micro">{MICROCOPY}</p>
       </section>
       <Plate title="Painel operacional em tempo real · 45 s">
-        <div className="lp__video" role="img" aria-label="Espaço do vídeo demonstrativo de 45 segundos">
-          <svg width="56" height="56" viewBox="0 0 56 56" aria-hidden="true">
-            <rect width="56" height="56" rx="3" fill="var(--signal-yellow)" /><path d="M22 16l18 12-18 12z" fill="var(--totem-ink)" />
-          </svg>
-          <span>Vídeo demonstrativo · em gravação</span>
-        </div>
+        <video className="lp__video" controls muted playsInline preload="metadata" poster="/video/urbanflow-45s.jpg"
+          aria-label="Vídeo demonstrativo de 45 segundos: alerta, envio do ônibus extra e fila esvaziando">
+          <source src="/video/urbanflow-45s.mp4" type="video/mp4" />
+        </video>
       </Plate>
     </main>
   );

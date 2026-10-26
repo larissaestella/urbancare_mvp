@@ -8,9 +8,7 @@
 .lp__sub { font-size: 18px; line-height: 1.45; color: var(--ink-muted); }
 .lp__cta { height: 56px; padding: 0 var(--s-24); font-size: 16px; align-self: flex-start; max-width: 100%; }
 .lp__micro { font-size: 14px; font-weight: 600; color: var(--status-green); }
-.lp__video { aspect-ratio: 16 / 9; background: var(--totem-ink); border-radius: var(--r-chip); display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: var(--s-16); color: var(--ink-quiet); font: 600 14px/1 var(--font-display);
-  letter-spacing: 0.05em; text-transform: uppercase; }
+.lp__video { display: block; width: 100%; aspect-ratio: 16 / 9; background: var(--totem-ink); border-radius: var(--r-chip); }
 .lp__form { background: var(--plate-white); border-top: 6px solid var(--totem-ink); border-radius: var(--r-plate); padding: var(--s-20) var(--s-24);
   display: flex; flex-direction: column; gap: var(--s-16); }
 .lp__form label { display: flex; flex-direction: column; gap: var(--s-8); }
