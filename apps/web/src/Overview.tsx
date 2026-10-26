@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { call, fmt, simHour, simLabel, useSnapshot, type Snapshot, type StopRow } from "./api";
+import { call, fmt, simHour, simLabel, useMonitor, useSnapshot, type Snapshot, type StopRow } from "./api";
 import { Button, KpiStrip, LineChip, LivePill, Plate, Sidebar, StatusPill, StatusShape, TitlePlate, Toggle } from "./ui";
 import "./overview.css";
 
 export const NAV = ["Visão geral", "Pontos de ônibus", "Frota", "Publicidade", "Relatórios", "Configurações"];
-const PAGES: Record<string, string> = { "Visão geral": "/", "Pontos de ônibus": "/pontos/SP-0412", "Frota": "/frota", "Publicidade": "/publicidade",
+const PAGES: Record<string, string> = { "Visão geral": "/", "Pontos de ônibus": "/pontos", "Frota": "/frota", "Publicidade": "/publicidade",
   "Relatórios": "/relatorios", "Configurações": "/configuracoes" };
 export const go = (item: string) => PAGES[item] && location.assign(PAGES[item]);
 export const GARAGE = "Garagem Vila Mariana";
@@ -47,6 +47,7 @@ export default function Overview() {
 }
 
 function Body({ snap, onSend, auto, setAuto }: { snap: Snapshot; onSend: (s: StopRow) => void; auto: boolean; setAuto: (v: boolean) => void }) {
+  const [monitor, toggleMonitor] = useMonitor();
   const o = snap.overview;
   const over = o.wait_over_goal_min;
   const vs = o.vs_avg_pct ?? 0;
@@ -63,8 +64,8 @@ function Body({ snap, onSend, auto, setAuto }: { snap: Snapshot; onSend: (s: Sto
       ]} />
       <div className="ov__grid">
         <Plate title="Mapa de lotação em tempo real" right={<Legend />}><StopMap stops={snap.map} /></Plate>
-        <Plate title="Pontos em alerta" right={<a className="band-link" href="#">Ver todos →</a>}>
-          <ul className="alerts">{snap.alerts.map((s) => <AlertRow key={s.id} stop={s} onSend={onSend} />)}</ul>
+        <Plate title="Pontos em alerta" right={<a className="band-link" href="/pontos">Ver todos →</a>}>
+          <ul className="alerts">{snap.alerts.map((s) => <AlertRow key={s.id} stop={s} onSend={onSend} monitoring={monitor.has(s.id)} onMonitor={toggleMonitor} />)}</ul>
         </Plate>
         <Plate title="Fluxo de pessoas por hora — hoje vs. média" right={<ChartLegend />}>
           <HourlyChart hourly={snap.hourly} hour={simHour(snap.clock.sim_now)} now={o.people} />
@@ -87,7 +88,7 @@ function Legend() {
   );
 }
 
-function AlertRow({ stop, onSend }: { stop: StopRow; onSend: (s: StopRow) => void }) {
+function AlertRow({ stop, onSend, monitoring, onMonitor }: { stop: StopRow; onSend: (s: StopRow) => void; monitoring: boolean; onMonitor: (id: string) => void }) {
   return (
     <li className="alert-row">
       <div>
@@ -96,10 +97,13 @@ function AlertRow({ stop, onSend }: { stop: StopRow; onSend: (s: StopRow) => voi
       </div>
       {stop.enroute ? <Button variant="secondary" disabled>Extra a caminho</Button>
         : stop.status === "critico" ? <Button onClick={() => onSend(stop)}>Enviar extra</Button>
-        : <Button variant="secondary">Monitorar</Button>}
+        : <Button variant="secondary" aria-pressed={monitoring} onClick={() => onMonitor(stop.id)}>{monitoring ? "Monitorando" : "Monitorar"}</Button>}
     </li>
   );
 }
+
+// SP-0412 tem detalhe próprio; os demais abrem a lista de pontos filtrada nele
+const openStop = (s: StopRow) => location.assign(s.id === "SP-0412" ? "/pontos/SP-0412" : `/pontos?busca=${s.id}`);
 
 /* Mapa estilizado do recorte Paulista/Consolação/Rebouças: geometria desenhada a partir do render 01, sem projeção. */
 const W = 656, H = 316;
@@ -129,7 +133,8 @@ function StopMap({ stops }: { stops: StopRow[] }) {
         {stops.map((s) => {
           const [x, y] = px(s);
           return (
-            <g key={s.id} transform={`translate(${x} ${y})`} onMouseEnter={() => setHover(s.id)} onMouseLeave={() => setHover(null)}
+            <g key={s.id} transform={`translate(${x} ${y})`} onMouseEnter={() => setHover(s.id)} onMouseLeave={() => setHover(null)} role="link"
+              onClick={() => openStop(s)} onKeyDown={(e) => e.key === "Enter" && openStop(s)}
               className="map__stop" tabIndex={0} onFocus={() => setHover(s.id)} aria-label={`${s.name}: ${s.count} pessoas`}>
               {s.status !== "normal" && <circle r="24" fill={COLOR[s.status]} opacity="0.3" />}
               {s.status === "critico" && <rect x="-8" y="-8" width="16" height="16" fill={COLOR.critico} stroke="#fff" strokeWidth="2" />}

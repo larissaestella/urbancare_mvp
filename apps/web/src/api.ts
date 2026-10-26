@@ -47,3 +47,33 @@ export function simLabel(iso: string): string {
 
 export const simHour = (iso: string) => Number(iso.slice(11, 13));
 export const fmt = (n: number) => n.toLocaleString("pt-BR");
+
+export type StopListRow = StopRow & { board_rate: number; alert_active: boolean };
+
+/** Os 142 pontos (GET /stops), recarregados a cada 2 s; a lista de pontos e o mapa usam a mesma classificação da API. */
+export function useStops(): StopListRow[] | null {
+  const [rows, setRows] = useState<StopListRow[] | null>(null);
+  useEffect(() => {
+    const load = () => call<(StopListRow & { svg_x: number | null; svg_y: number | null })[]>("GET", "/stops")
+      .then((r) => setRows(r.map((s) => ({ ...s, x: s.svg_x, y: s.svg_y }))), () => {});
+    load();
+    const t = window.setInterval(load, 2000);
+    return () => window.clearInterval(t);
+  }, []);
+  return rows;
+}
+
+const MONITOR_KEY = "urbanflow.monitorando";
+const readMonitor = (): string[] => { try { return JSON.parse(localStorage.getItem(MONITOR_KEY) ?? "[]"); } catch { return []; } };
+
+/** Pontos que o operador marcou para acompanhar (conveniência do navegador; não vai para a API). */
+export function useMonitor(): [Set<string>, (id: string) => void] {
+  const [ids, setIds] = useState(() => new Set(readMonitor()));
+  const toggle = (id: string) => setIds((cur) => {
+    const next = new Set(cur);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    try { localStorage.setItem(MONITOR_KEY, JSON.stringify([...next])); } catch { /* sem armazenamento: vale só nesta tela */ }
+    return next;
+  });
+  return [ids, toggle];
+}

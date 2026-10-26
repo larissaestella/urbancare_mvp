@@ -65,3 +65,13 @@
 .pb-bars__track { height: 28px; background: var(--concrete-raised); }
 .pb-bars__track i { display: block; height: 100%; }
 .pb-bars__value { font: 700 16px/1 var(--font-display); text-align: right; }
+
+/* "Ver todos": os 38 painéis num diálogo com rolagem */
+.pb-all { width: 720px; max-height: 86vh; display: flex; flex-direction: column; }
+.pb-all .dialog__band { flex: none; }
+.pb-all__close { margin-left: auto; border: 0; background: none; color: #fff; font: 700 22px/1 var(--font-display); padding: 0 4px; }
+.pb-all__body { overflow-y: auto; padding: var(--s-8) var(--s-20) var(--s-16); }
+.pb-all .pb-rank td:nth-child(2) { text-align: left; font-size: 14px; font-weight: 500; }
+.pb-all .pb-rank th:nth-child(2) { text-align: left; }
+.pb-all .pb-rank td:first-child { color: var(--ink-muted); font: 600 13px/1 var(--font-display); width: 32px; }
+.pb-all .pb-rank td { padding: 10px 0 10px var(--s-8); }

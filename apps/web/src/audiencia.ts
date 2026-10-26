@@ -48,3 +48,17 @@ export function resumo(p: Periodo, day = 4) {
   const peak = colSum(day) >= HEAT_TOTAL / 7;
   return { people: dayPeople(day), exposure: peak ? "7m 55s" : "6m 50s", qualified: peak ? "70%" : "63%", cpm: peak ? "R$ 15,10" : "R$ 11,60" };
 }
+
+/** Os 38 painéis: os 5 do render e mais 33 com audiência decrescente (13,9 → 4,8 mil), fechando 412 mil na semana.
+    Os nomes dos 33 vêm dos pontos do seed (GET /stops). */
+export function allPanels(names: string[]) {
+  const top = RANKING.map(([name, , time, cpm], i) => ({ name, week: RANK_WEEK[i], time, cpm }));
+  const rest = WEEK_TOTAL - RANK_WEEK.reduce((a, b) => a + b, 0);
+  const others = names.filter((n) => !top.some((t) => n.startsWith(t.name))).slice(0, 33);
+  const step = 9_100 / 32, first = rest / 33 + 16 * step; // linear, média = rest / 33
+  return [...top, ...others.map((name, i) => {
+    const sec = Math.round(330 - i * 4.4); // 5m 30s → 3m 10s
+    return { name, week: first - i * step, time: `${Math.floor(sec / 60)}m ${String(sec % 60).padStart(2, "0")}s`,
+      cpm: `R$ ${(10.9 - i * 0.147).toFixed(2).replace(".", ",")}` };
+  })];
+}

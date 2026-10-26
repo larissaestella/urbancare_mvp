@@ -1,17 +1,17 @@
 import { useEffect, useState } from "react";
 import { NAV, go } from "./Overview";
+import { call } from "./api";
 import { reportUrl } from "./Relatorio";
 import { Button, KpiStrip, Plate, Segmented, Sidebar, StatusShape } from "./ui";
 import "./overview.css";
 import "./publicidade.css";
-import { DATES, DAYS, HEAT, HEAT_TOTAL, JULY_TOTAL, MONTH_TOTAL, MONTH_WEEKS, PEAK_INDEX, RANKING, RANK_WEEK, SLOTS, WEEK_TOTAL, colSum, dayPeople, delta, mil, pct, resumo, slotPeople, type Periodo } from "./audiencia";
+import { allPanels, DATES, DAYS, HEAT, HEAT_TOTAL, JULY_TOTAL, MONTH_TOTAL, MONTH_WEEKS, PEAK_INDEX, RANKING, RANK_WEEK, SLOTS, WEEK_TOTAL, colSum, dayPeople, delta, mil, pct, resumo, slotPeople, type Periodo } from "./audiencia";
 
 /* Audiência dos painéis (render 03). Semanal é verbatim do render: o protótipo não mede exposição ao anúncio nem tem campanhas.
    Exportar baixa o CSV do período escolhido; o relatório auditado abre o PDF da campanha (/relatorios/ver);
    compartilhar copia o link desse relatório (PLANO §8.6). */
 const RANGES: Periodo[] = ["Diária", "Semanal", "Mensal"];
 type Range = Periodo;
-const PILOT = "entra com os dados reais do piloto.";
 
 function kpis(range: Range, day: number) {
   if (range === "Semanal") return null;
@@ -43,6 +43,7 @@ export default function Publicidade() {
   const [range, setRange] = useState<Range>("Semanal");
   const [day, setDay] = useState(4); // sexta, o dia de maior audiência
   const [toast, setToast] = useState<string | null>(null);
+  const [todos, setTodos] = useState(false);
 
   useEffect(() => {
     if (!toast) return;
@@ -88,7 +89,7 @@ export default function Publicidade() {
               <p className="pb-heat__note">{delta(pct(WEEK_TOTAL, MONTH_WEEKS[0][1]))} da primeira para a última semana do mês</p>
             </Plate>
           )}
-          <Plate title="Ranking de painéis" right={<button className="band-link pb-link" onClick={() => setToast(`A lista completa de painéis ${PILOT}`)}>Ver todos →</button>}>
+          <Plate title="Ranking de painéis" right={<button className="band-link pb-link" onClick={() => setTodos(true)}>Ver todos →</button>}>
             <Ranking scale={scale} />
           </Plate>
         </div>
@@ -102,6 +103,7 @@ export default function Publicidade() {
           <Plate title="Como a venda do anúncio muda"><Compare /></Plate>
         </div>
       </main>
+      {todos && <AllPanels scale={scale} period={META[range](day).split(" · ").pop()!} onClose={() => setTodos(false)} />}
       {toast && <div className="toast toast--info" role="status"><StatusShape status="normal" color="var(--info-blue-on-ink)" />{toast}</div>}
     </div>
   );
@@ -127,6 +129,32 @@ function exportCsv(range: Range, day: number) {
   a.download = `urbanflow-audiencia-${range.toLowerCase()}.csv`;
   a.click();
   URL.revokeObjectURL(a.href);
+}
+
+function AllPanels({ scale, period, onClose }: { scale: number; period: string; onClose: () => void }) {
+  const [names, setNames] = useState<string[] | null>(null);
+  useEffect(() => {
+    call<{ name: string }[]>("GET", "/stops").then((r) => setNames(r.map((s) => s.name)), () => setNames([]));
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", esc);
+    return () => window.removeEventListener("keydown", esc);
+  }, [onClose]);
+  const panels = names ? allPanels(names) : [];
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="dialog pb-all" role="dialog" aria-modal="true" aria-labelledby="pb-all-title" onClick={(e) => e.stopPropagation()}>
+        <header className="dialog__band"><span className="dialog__mark" /><h2 id="pb-all-title" className="t-title">Todos os painéis · {period}</h2>
+          <button className="pb-all__close" aria-label="Fechar" onClick={onClose}>×</button></header>
+        <div className="pb-all__body">
+          <table className="pb-rank">
+            <thead><tr><th>#</th><th>Painel</th><th>Pessoas</th><th>Tempo méd.</th><th>CPM sug.</th></tr></thead>
+            <tbody>{panels.map((p, i) => <tr key={`${p.name}-${i}`}><td>{i + 1}</td><td>{p.name}</td><td>{mil(p.week * scale)}</td><td>{p.time}</td><td>{p.cpm}</td></tr>)}</tbody>
+          </table>
+          {!names && <p className="pb-empty">Carregando painéis…</p>}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function DayPicker({ day, onChange }: { day: number; onChange: (d: number) => void }) {

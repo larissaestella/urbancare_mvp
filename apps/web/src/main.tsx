@@ -12,6 +12,7 @@ import Detail from "./Detail";
 import Frota from "./Frota";
 import Landing from "./Landing";
 import Overview from "./Overview";
+import Pontos from "./Pontos";
 import Primitives from "./Primitives";
 import Publicidade from "./Publicidade";
 import Relatorio from "./Relatorio";
@@ -19,7 +20,7 @@ import Relatorios from "./Relatorios";
 
 const ROUTES: Record<string, () => JSX.Element> = {
   "/dev/primitives": Primitives, "/bastidor": Bastidor, "/landing": Landing, "/landing/metricas": Conversao,
-  "/publicidade": Publicidade, "/frota": Frota, "/relatorios": Relatorios, "/configuracoes": Configuracoes, "/relatorios/ver": Relatorio,
+  "/publicidade": Publicidade, "/frota": Frota, "/relatorios": Relatorios, "/configuracoes": Configuracoes, "/relatorios/ver": Relatorio, "/pontos": Pontos,
 };
 const Screen = ROUTES[location.pathname] ?? (location.pathname.startsWith("/pontos/") ? Detail : Overview);
 

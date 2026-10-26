@@ -265,11 +265,16 @@ async def list_alerts(request: Request):
 
 @app.get("/stops")
 async def list_stops(request: Request):
+    """Os 142 pontos (o simulador lê as taxas daqui); line/enroute/wait_min/status servem à lista de pontos do front."""
     async with request.app.state.pool.connection() as conn:
         cur = await conn.execute(
-            "SELECT s.id, s.name, s.arrival_rate, s.board_rate, s.steady, s.svg_x, s.svg_y, st.count, st.alert_active "
-            "FROM stops s JOIN stop_state st ON st.stop_id = s.id ORDER BY s.id")
-        return await cur.fetchall()
+            "SELECT s.id, s.name, s.arrival_rate, s.board_rate, s.steady, s.svg_x, s.svg_y, st.count, st.alert_active, "
+            "(SELECT min(line_id) FROM stop_lines sl WHERE sl.stop_id = s.id) AS line, "
+            "EXISTS (SELECT 1 FROM dispatches d WHERE d.stop_id = s.id AND d.status = %s) AS enroute "
+            "FROM stops s JOIN stop_state st ON st.stop_id = s.id ORDER BY s.id", (dispatch.A_CAMINHO,))
+        rows = await cur.fetchall()
+    return [dict(r, wait_min=round(overview.stop_wait(r["count"], r["board_rate"])),
+                 status=overview.status(r["count"], r["alert_active"])) for r in rows]
 
 
 @app.post("/landing/events", status_code=202)

@@ -49,7 +49,7 @@ export default function Detail() {
       <main className="ov">
         <header className="title-plate dt-head">
           <div>
-            <nav className="dt-crumb"><a href="/">Pontos de ônibus</a> / <span>{STOP}</span></nav>
+            <nav className="dt-crumb"><a href="/pontos">Pontos de ônibus</a> / <span>{STOP}</span></nav>
             <div className="dt-head__title">
               <h1 className="t-display">{TITLE}</h1>
               {stop && <StatusPill status={stop.status} />}
