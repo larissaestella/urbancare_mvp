@@ -4,7 +4,7 @@ import { Button, KpiStrip, LineChip, LivePill, Plate, Sidebar, StatusPill, Statu
 import "./overview.css";
 
 export const NAV = ["Visão geral", "Pontos de ônibus", "Frota", "Publicidade", "Relatórios", "Configurações"];
-const PAGES: Record<string, string> = { "Visão geral": "/", "Pontos de ônibus": "/pontos/SP-0412" };
+const PAGES: Record<string, string> = { "Visão geral": "/", "Pontos de ônibus": "/pontos/SP-0412", "Publicidade": "/publicidade" };
 export const go = (item: string) => PAGES[item] && location.assign(PAGES[item]);
 export const GARAGE = "Garagem Vila Mariana";
 export const ETA_MIN = 9; // = dispatch.ETA_MIN na API

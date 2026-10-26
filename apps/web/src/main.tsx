@@ -11,9 +11,11 @@ import Detail from "./Detail";
 import Landing from "./Landing";
 import Overview from "./Overview";
 import Primitives from "./Primitives";
+import Publicidade from "./Publicidade";
 
 const ROUTES: Record<string, () => JSX.Element> = {
   "/dev/primitives": Primitives, "/bastidor": Bastidor, "/landing": Landing, "/landing/metricas": Conversao,
+  "/publicidade": Publicidade,
 };
 const Screen = ROUTES[location.pathname] ?? (location.pathname.startsWith("/pontos/") ? Detail : Overview);
 
