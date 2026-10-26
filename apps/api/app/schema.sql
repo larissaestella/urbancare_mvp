@@ -57,3 +57,22 @@ CREATE TABLE IF NOT EXISTS hourly_network (
     avg_4w integer NOT NULL,       -- média das 4 semanas (também é a previsão)
     today  integer                 -- horas já fechadas do dia do cenário
 );
+-- Landing do smoke test (relógio de parede, não de sim). Só os 3 campos do formulário, a variante e um id
+-- aleatório do navegador: sem IP, sem user agent. Visita e clique contam uma vez por visitante e variante.
+CREATE TABLE IF NOT EXISTS events (
+    visitor text NOT NULL,
+    variant char(1) NOT NULL CHECK (variant IN ('A', 'B')),
+    kind    text NOT NULL CHECK (kind IN ('visit', 'click')),
+    ts      timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (visitor, variant, kind)
+);
+CREATE TABLE IF NOT EXISTS leads (
+    id         serial PRIMARY KEY,
+    visitor    text NOT NULL,
+    variant    char(1) NOT NULL CHECK (variant IN ('A', 'B')),
+    company    text NOT NULL,
+    size       integer NOT NULL CHECK (size > 0),   -- quantidade estimada de linhas/pontos
+    email      text NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (visitor, variant)
+);

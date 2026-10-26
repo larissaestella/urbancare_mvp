@@ -25,6 +25,11 @@ export default function Bastidor() {
           <p className="t-caption" style={{ color: "var(--ink-muted)" }}>
             A 30×, 1 min de parede = 30 min de sim (o extra chega em ~18 s). O Demo abre pausado em Seg 18:42; recarregar sempre volta ao estado do render.
           </p>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            <Button variant="secondary" disabled={busy}
+              onClick={() => confirm("Zerar visitas, cliques e leads da landing?") && run(() => call("DELETE", "/landing/data"))}>Zerar métricas da landing</Button>
+            <a href="/landing?v=A">Landing A →</a><a href="/landing?v=B">Landing B →</a><a href="/landing/metricas">Ver conversão →</a>
+          </div>
         </div>
       </Plate>
     </main>

@@ -12,7 +12,7 @@ from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, ValidationError
 
-from . import demo, dispatch, overview, seed
+from . import demo, dispatch, landing, overview, seed
 from .clock import SimClock
 from .rules import StopState, evaluate
 
@@ -270,3 +270,46 @@ async def list_stops(request: Request):
             "SELECT s.id, s.name, s.arrival_rate, s.board_rate, s.steady, s.svg_x, s.svg_y, st.count, st.alert_active "
             "FROM stops s JOIN stop_state st ON st.stop_id = s.id ORDER BY s.id")
         return await cur.fetchall()
+
+
+@app.post("/landing/events", status_code=202)
+async def landing_event(e: landing.EventIn, request: Request):
+    async with request.app.state.pool.connection() as conn:
+        await conn.execute("INSERT INTO events(visitor, variant, kind) VALUES (%s, %s, %s) ON CONFLICT DO NOTHING",
+                           (e.visitor, e.variant, e.kind))
+    return {"accepted": True}
+
+
+@app.post("/leads", status_code=201)
+async def create_lead(lead: landing.LeadIn, request: Request):
+    """Um lead por visitante e variante: reenviar o formulário atualiza o cadastro em vez de duplicar."""
+    async with request.app.state.pool.connection() as conn:
+        await conn.execute(
+            "INSERT INTO leads(visitor, variant, company, size, email) VALUES (%s, %s, %s, %s, %s) "
+            "ON CONFLICT (visitor, variant) DO UPDATE SET company=EXCLUDED.company, size=EXCLUDED.size, "
+            "email=EXCLUDED.email, created_at=now()",
+            (lead.visitor, lead.variant, lead.company, lead.size, lead.email))
+    return {"accepted": True}
+
+
+@app.get("/landing/metrics")
+async def landing_metrics(request: Request):
+    async with request.app.state.pool.connection() as conn:
+        cur = await conn.execute(
+            "SELECT v.variant, "
+            "(SELECT count(*) FROM events e WHERE e.variant = v.variant AND e.kind = 'visit') AS visits, "
+            "(SELECT count(*) FROM events e WHERE e.variant = v.variant AND e.kind = 'click') AS clicks, "
+            "(SELECT count(*) FROM leads l WHERE l.variant = v.variant) AS leads "
+            "FROM (VALUES ('A'), ('B')) AS v(variant)")
+        m = landing.metrics(await cur.fetchall())
+        cur = await conn.execute("SELECT variant, company, size, email, created_at FROM leads ORDER BY created_at DESC LIMIT 20")
+        m["recent"] = await cur.fetchall()
+    return m
+
+
+@app.delete("/landing/data")
+async def landing_reset(request: Request):
+    """Só pelo bastidor: zera visitas, cliques e leads. O cenário Demo não mexe nestas tabelas."""
+    async with request.app.state.pool.connection() as conn:
+        await conn.execute("TRUNCATE events, leads")
+    return {"ok": True}
