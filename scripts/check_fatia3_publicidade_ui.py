@@ -7,7 +7,9 @@ from playwright.sync_api import sync_playwright, expect
 S = sys.argv[1]
 with sync_playwright() as p:
     b = p.chromium.launch(channel="chrome")
-    pg = b.new_page(viewport={"width": 1440, "height": 1064})
+    ctx = b.new_context(viewport={"width": 1440, "height": 1064}, accept_downloads=True)
+    ctx.add_init_script("window.print = () => { window.__printed = true }")
+    pg = ctx.new_page()
     errs = []
     pg.on("pageerror", lambda e: errs.append(str(e)))
     pg.goto("http://localhost:5173/")
@@ -26,9 +28,19 @@ with sync_playwright() as p:
     expect(pg.locator(".pb-foot")).to_contain_text("simulação para validação (Sprint 2)")
     pg.screenshot(path=f"{S}/publicidade.png")
     print("ok: título, KPIs, mapa de calor 6×7, ranking, campanha, rodapé §8.1")
-    pg.get_by_role("button", name="Gerar relatório auditado (PDF)").click()
-    expect(pg.get_by_role("status")).to_contain_text("dados reais do piloto")
-    print("ok: PDF mostra aviso do piloto")
+    with pg.expect_popup() as pop:
+        pg.get_by_role("button", name="Gerar relatório auditado (PDF)").click()
+    expect(pop.value.locator(".rp-head")).to_contain_text("Comprovação de campanha · Marca Aurora")
+    pop.value.wait_for_function("window.__printed === true")
+    pop.value.close()
+    pg.get_by_role("button", name="Compartilhar com a marca").click()
+    expect(pg.get_by_role("status")).to_contain_text("Link do relatório auditado copiado")
+    with pg.expect_download() as dl:
+        pg.get_by_role("button", name="Exportar relatório ↓").click()
+    csv = open(dl.value.path(), encoding="utf-8-sig").read()
+    assert dl.value.suggested_filename == "urbanflow-audiencia-semanal.csv", dl.value.suggested_filename
+    assert '"Pessoas expostas";"412000"' in csv and '"Av. Paulista, 1578";"28400"' in csv, csv[:300]
+    print("ok: relatório auditado abre o PDF da campanha; compartilhar copia o link; Exportar baixa o CSV semanal")
     pg.get_by_role("button", name="Mensal").click()
     expect(pg.locator(".title-plate")).to_contain_text("agosto (03/08 – 30/08)")
     expect(pg.locator(".kpi-strip")).to_contain_text("1,47 mi")

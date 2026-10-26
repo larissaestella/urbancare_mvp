@@ -1,20 +1,26 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { NAV, go } from "./Overview";
-import { Button, HighlightPill, KpiStrip, LockIcon, OkPill, Plate, Sidebar, StatusShape, TitlePlate, Toggle } from "./ui";
+import { TIPO, reportUrl, type Tipo } from "./Relatorio";
+import { Button, HighlightPill, KpiStrip, LockIcon, OkPill, Plate, Segmented, Sidebar, StatusShape, TitlePlate, Toggle } from "./ui";
 import checkList from "./assets/check-list.svg";
 import checkToast from "./assets/check-toast.svg";
 import "./overview.css";
 import "./relatorios.css";
 
 /* Relatórios (Figma 05, nó 32:111; toast do nó 10:212). Texto verbatim do Figma; rótulo de dados segue §8.1.
-   "Gerar relatório" mostra o toast do Figma; "Baixar PDF" avisa que o arquivo entra com os dados do piloto. */
-const RECENTES = [
-  ["Comprovação de campanha · Marca Aurora", "Marca Aurora", "17/08 – 13/09", "Auditado"],
-  ["Operação semanal · Via Sul", "Concessionária Via Sul", "24/08 – 30/08", "Auditado"],
-  ["Audiência semanal · 38 painéis", "Mídia OOH", "24/08 – 30/08", "Auditado"],
-  ["Envios automáticos · agosto", "Concessionária Via Sul", "01/08 – 31/08", "Em geração"],
-  ["SLA de atendimento · agosto", "Gestão pública (fiscalização)", "01/08 – 31/08", "Rascunho"],
+   "Gerar relatório" abre a escolha de tipo e destinatário, acrescenta a linha (Em geração → Auditado) e mostra o toast do Figma;
+   "Baixar PDF" abre o relatório imprimível (/relatorios/ver) e chama a impressão do navegador (PLANO §8.6). */
+type Row = { name: string; to: string; period: string; status: string; tipo: Tipo };
+const RECENTES: Row[] = [
+  { name: "Comprovação de campanha · Marca Aurora", to: "Marca Aurora", period: "17/08 – 13/09", status: "Auditado", tipo: "campanha" },
+  { name: "Operação semanal · Via Sul", to: "Concessionária Via Sul", period: "24/08 – 30/08", status: "Auditado", tipo: "semanal" },
+  { name: "Audiência semanal · 38 painéis", to: "Mídia OOH", period: "24/08 – 30/08", status: "Auditado", tipo: "semanal" },
+  { name: "Envios automáticos · agosto", to: "Concessionária Via Sul", period: "01/08 – 31/08", status: "Em geração", tipo: "mensal" },
+  { name: "SLA de atendimento · agosto", to: "Gestão pública (fiscalização)", period: "01/08 – 31/08", status: "Rascunho", tipo: "mensal" },
 ];
+const TIPOS = { "Diário": "diario", "Semanal": "semanal", "Mensal": "mensal", "Campanha": "campanha" } as const;
+type TipoLabel = keyof typeof TIPOS;
+const DESTS = ["Concessionária Via Sul", "Mídia OOH", "Marca Aurora", "Gestão pública (fiscalização)"];
 const AGENDA = [
   ["Operação semanal · Via Sul", "Toda segunda, 07h · envio para a concessionária"],
   ["Audiência semanal · Mídia OOH", "Toda segunda, 08h · 38 painéis"],
@@ -28,11 +34,15 @@ const CONTEUDO = [
   "Impressões entregues vs. contratadas",
 ];
 
-type Toast = { kind: "report" } | { kind: "info"; text: string };
+type Toast = { kind: "report"; text: string } | { kind: "info"; text: string };
 
 export default function Relatorios() {
   const [toast, setToast] = useState<Toast | null>(null);
   const [agenda, setAgenda] = useState([true, true, true, false]);
+  const [rows, setRows] = useState(RECENTES);
+  const [dialog, setDialog] = useState(false);
+  const novos = rows.length - RECENTES.length;
+  const novosAuditados = rows.slice(0, novos).filter((r) => r.status === "Auditado").length;
 
   useEffect(() => {
     if (!toast) return;
@@ -40,15 +50,31 @@ export default function Relatorios() {
     return () => window.clearTimeout(t);
   }, [toast]);
 
+  function gerar(label: TipoLabel, to: string) {
+    setDialog(false);
+    const tipo = TIPOS[label];
+    const row: Row = { name: `${TIPO[tipo].nome} · ${to}`, to, period: TIPO[tipo].periodo, status: "Em geração", tipo };
+    setRows((rs) => [row, ...rs]);
+    window.setTimeout(() => {
+      setRows((rs) => rs.map((r) => (r === row ? { ...r, status: "Auditado" } : r)));
+      setToast({ kind: "report", text: tipo === "campanha" ? "PDF auditado da campanha pronto para enviar à marca" : `PDF auditado pronto para enviar a ${to}` });
+    }, 2500);
+  }
+
+  function baixar(r: Row) {
+    if (r.status !== "Auditado") return setToast({ kind: "info", text: `“${r.name}” ainda está ${r.status === "Rascunho" ? "em rascunho" : "em geração"}; o PDF sai quando for auditado.` });
+    window.open(reportUrl(r.tipo, r.name, r.to), "_blank");
+  }
+
   return (
     <div className="app">
       <Sidebar items={NAV} active="Relatórios" onNavigate={go} />
       <main className="ov">
         <TitlePlate title="Relatórios" meta="Relatórios periódicos para concessionárias, anunciantes e gestão pública"
-          right={<Button onClick={() => setToast({ kind: "report" })}>Gerar relatório</Button>} />
+          right={<Button onClick={() => setDialog(true)}>Gerar relatório</Button>} />
         <KpiStrip cells={[
-          { label: "Relatórios gerados no mês", value: "14", delta: "3 a mais que julho", tone: "pos" },
-          { label: "Auditados", value: "11", delta: "de 14 no mês", tone: "neutral" },
+          { label: "Relatórios gerados no mês", value: String(14 + novos), delta: `${3 + novos} a mais que julho`, tone: "pos" },
+          { label: "Auditados", value: String(11 + novosAuditados), delta: `de ${14 + novos} no mês`, tone: "neutral" },
           { label: "Enviados às marcas", value: "6", delta: "2 campanhas em veiculação", tone: "neutral" },
           { label: "Próximo envio automático", value: "Seg 07h", delta: "Operação semanal · Via Sul", tone: "neutral" },
         ]} />
@@ -56,11 +82,11 @@ export default function Relatorios() {
           <table className="rl-table">
             <thead><tr><th>Relatório</th><th>Destinatário</th><th>Período</th><th>Status</th><th /></tr></thead>
             <tbody>
-              {RECENTES.map(([name, to, period, status]) => (
-                <tr key={name}>
-                  <td>{name}</td><td>{to}</td><td>{period}</td>
-                  <td>{status === "Auditado" ? <OkPill>{status}</OkPill> : <HighlightPill>{status}</HighlightPill>}</td>
-                  <td><Button variant="secondary" onClick={() => setToast({ kind: "info", text: "O PDF do relatório entra com os dados reais do piloto." })}>Baixar PDF</Button></td>
+              {rows.map((r, i) => (
+                <tr key={`${r.name}-${i}`}>
+                  <td>{r.name}</td><td>{r.to}</td><td>{r.period}</td>
+                  <td>{r.status === "Auditado" ? <OkPill>{r.status}</OkPill> : <HighlightPill>{r.status}</HighlightPill>}</td>
+                  <td><Button variant="secondary" onClick={() => baixar(r)}>Baixar PDF</Button></td>
                 </tr>
               ))}
             </tbody>
@@ -86,15 +112,48 @@ export default function Relatorios() {
           </Plate>
         </div>
       </main>
+      {dialog && <GerarDialog onCancel={() => setDialog(false)} onConfirm={gerar} />}
       {toast?.kind === "report" && (
         <div className="rl-toast" role="status">
           <span className="rl-toast__badge"><img src={checkToast} alt="" /></span>
-          <div><strong>Relatório gerado</strong><span>PDF auditado da campanha pronto para enviar à marca</span></div>
+          <div><strong>Relatório gerado</strong><span>{toast.text}</span></div>
         </div>
       )}
       {toast?.kind === "info" && (
         <div className="toast rl-toast--info" role="status"><StatusShape status="normal" color="var(--info-blue-on-ink)" />{toast.text}</div>
       )}
+    </div>
+  );
+}
+
+function GerarDialog({ onCancel, onConfirm }: { onCancel: () => void; onConfirm: (t: TipoLabel, to: string) => void }) {
+  const [tipo, setTipo] = useState<TipoLabel>("Semanal");
+  const [to, setTo] = useState(DESTS[0]);
+  const ok = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    ok.current?.focus();
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && onCancel();
+    window.addEventListener("keydown", esc);
+    return () => window.removeEventListener("keydown", esc);
+  }, [onCancel]);
+  return (
+    <div className="overlay" onClick={onCancel}>
+      <div className="dialog rl-dialog" role="dialog" aria-modal="true" aria-labelledby="gr-title" onClick={(e) => e.stopPropagation()}>
+        <div className="dialog__band"><span className="dialog__mark" /><h2 id="gr-title" className="t-title">Gerar relatório</h2></div>
+        <div className="dialog__body">
+          <div className="rl-field"><span>Tipo</span>
+            <Segmented options={Object.keys(TIPOS) as TipoLabel[]} value={tipo} onChange={setTipo} />
+          </div>
+          <label className="rl-field"><span>Destinatário</span>
+            <select value={to} onChange={(e) => setTo(e.target.value)}>{DESTS.map((d) => <option key={d}>{d}</option>)}</select>
+          </label>
+          <p>Período: {TIPO[TIPOS[tipo]].periodo}. O relatório é auditado e fica na lista para baixar em PDF.</p>
+          <div className="dialog__actions">
+            <Button variant="secondary" onClick={onCancel}>Cancelar</Button>
+            <Button ref={ok} onClick={() => onConfirm(tipo, to)}>Gerar</Button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

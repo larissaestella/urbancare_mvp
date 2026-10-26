@@ -14,11 +14,12 @@ import Landing from "./Landing";
 import Overview from "./Overview";
 import Primitives from "./Primitives";
 import Publicidade from "./Publicidade";
+import Relatorio from "./Relatorio";
 import Relatorios from "./Relatorios";
 
 const ROUTES: Record<string, () => JSX.Element> = {
   "/dev/primitives": Primitives, "/bastidor": Bastidor, "/landing": Landing, "/landing/metricas": Conversao,
-  "/publicidade": Publicidade, "/frota": Frota, "/relatorios": Relatorios, "/configuracoes": Configuracoes,
+  "/publicidade": Publicidade, "/frota": Frota, "/relatorios": Relatorios, "/configuracoes": Configuracoes, "/relatorios/ver": Relatorio,
 };
 const Screen = ROUTES[location.pathname] ?? (location.pathname.startsWith("/pontos/") ? Detail : Overview);
 
