@@ -4,8 +4,10 @@ import { Button, KpiStrip, LineChip, LivePill, Plate, Sidebar, StatusPill, Statu
 import "./overview.css";
 
 export const NAV = ["Visão geral", "Pontos de ônibus", "Frota", "Publicidade", "Relatórios", "Configurações"];
-const GARAGE = "Garagem Vila Mariana";
-const ETA_MIN = 9; // = dispatch.ETA_MIN na API
+const PAGES: Record<string, string> = { "Visão geral": "/", "Pontos de ônibus": "/pontos/SP-0412" };
+export const go = (item: string) => PAGES[item] && location.assign(PAGES[item]);
+export const GARAGE = "Garagem Vila Mariana";
+export const ETA_MIN = 9; // = dispatch.ETA_MIN na API
 
 export default function Overview() {
   const snap = useSnapshot();
@@ -31,7 +33,7 @@ export default function Overview() {
 
   return (
     <div className="app">
-      <Sidebar items={NAV} active="Visão geral" />
+      <Sidebar items={NAV} active="Visão geral" onNavigate={go} />
       <main className="ov">
         <TitlePlate title="Visão geral da operação" meta="Concessionária Via Sul · 142 pontos monitorados"
           right={<div className="ov__head"><LivePill />{snap && <span className="ov__clock">{simLabel(snap.clock.sim_now)}</span>}<span className="avatar" aria-label="Perfil"><svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="14" r="6" fill="#fff" /><path d="M7 31a11 9 0 0 1 22 0z" fill="#fff" /></svg></span></div>} />
@@ -88,7 +90,7 @@ function AlertRow({ stop, onSend }: { stop: StopRow; onSend: (s: StopRow) => voi
   return (
     <li className="alert-row">
       <div>
-        <div className="alert-row__name"><span className="t-metric-s">{stop.name}</span><StatusPill status={stop.status} /></div>
+        <div className="alert-row__name">{stop.id === "SP-0412" ? <a className="t-metric-s alert-row__link" href="/pontos/SP-0412">{stop.name}</a> : <span className="t-metric-s">{stop.name}</span>}<StatusPill status={stop.status} /></div>
         <div className="alert-row__meta">Linha <LineChip line={stop.line} /> · {stop.count} pessoas · {stop.wait_min} min</div>
       </div>
       {stop.enroute ? <Button variant="secondary" disabled>Extra a caminho</Button>
@@ -211,7 +213,7 @@ function AutoRule({ extras }: { extras: number }) {
   );
 }
 
-function ConfirmDialog({ stop, onCancel, onConfirm }: { stop: StopRow; onCancel: () => void; onConfirm: () => void }) {
+export function ConfirmDialog({ stop, onCancel, onConfirm }: { stop: StopRow; onCancel: () => void; onConfirm: () => void }) {
   const ok = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     ok.current?.focus();

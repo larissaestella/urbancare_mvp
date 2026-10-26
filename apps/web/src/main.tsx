@@ -7,6 +7,7 @@ import "./tokens.css";
 import { createRoot } from "react-dom/client";
 import Bastidor from "./Bastidor";
 import Conversao from "./Conversao";
+import Detail from "./Detail";
 import Landing from "./Landing";
 import Overview from "./Overview";
 import Primitives from "./Primitives";
@@ -14,6 +15,6 @@ import Primitives from "./Primitives";
 const ROUTES: Record<string, () => JSX.Element> = {
   "/dev/primitives": Primitives, "/bastidor": Bastidor, "/landing": Landing, "/landing/metricas": Conversao,
 };
-const Screen = ROUTES[location.pathname] ?? Overview;
+const Screen = ROUTES[location.pathname] ?? (location.pathname.startsWith("/pontos/") ? Detail : Overview);
 
 createRoot(document.getElementById("root")!).render(<Screen />);
