@@ -27,7 +27,14 @@ CREATE TABLE IF NOT EXISTS readings (
     count   integer NOT NULL CHECK (count >= 0),
     PRIMARY KEY (stop_id, ts)
 );
-SELECT create_hypertable('readings', 'ts', if_not_exists => true);
+-- TimescaleDB quando disponível (Docker local, Render Postgres); sem ele, readings fica uma tabela comum.
+DO $$
+BEGIN
+    CREATE EXTENSION IF NOT EXISTS timescaledb;
+    PERFORM create_hypertable('readings', 'ts', if_not_exists => true);
+EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'TimescaleDB indisponível: readings sem hypertable (%)', SQLERRM;
+END $$;
 CREATE TABLE IF NOT EXISTS stop_state (
     stop_id      text PRIMARY KEY REFERENCES stops(id),
     count        integer NOT NULL,
@@ -75,4 +82,21 @@ CREATE TABLE IF NOT EXISTS leads (
     email      text NOT NULL,
     created_at timestamptz NOT NULL DEFAULT now(),
     UNIQUE (visitor, variant)
+);
+-- Cadastro cidadão (Extração Automática de Endereços): só endereços confirmados pelo próprio usuário, com
+-- consentimento. Nenhuma imagem, nome ou documento é guardado; o id do titular é aleatório do navegador e cada
+-- endereço pode ser excluído por ele. Endereço repetido do mesmo titular atualiza a data em vez de duplicar.
+CREATE TABLE IF NOT EXISTS citizen_addresses (
+    id           serial PRIMARY KEY,
+    visitor      text NOT NULL,
+    issuer       text NOT NULL CHECK (issuer IN ('ENEL', 'VIVO', 'CLARO')),
+    street       text NOT NULL,
+    number       text NOT NULL,
+    complement   text NOT NULL DEFAULT '',
+    neighborhood text NOT NULL,
+    city         text NOT NULL,
+    state        char(2) NOT NULL,
+    postal_code  char(9) NOT NULL,
+    confirmed_at timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (visitor, street, number, complement, postal_code)
 );

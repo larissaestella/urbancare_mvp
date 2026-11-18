@@ -3,9 +3,9 @@ import { call, fmt, simHour, simLabel, useMonitor, useSnapshot, type Snapshot, t
 import { Button, KpiStrip, LineChip, LivePill, Plate, Sidebar, StatusPill, StatusShape, TitlePlate, Toggle } from "./ui";
 import "./overview.css";
 
-export const NAV = ["Visão geral", "Pontos de ônibus", "Frota", "Publicidade", "Relatórios", "Configurações"];
+export const NAV = ["Visão geral", "Pontos de ônibus", "Frota", "Publicidade", "Relatórios", "Configurações", "Cadastro cidadão"];
 const PAGES: Record<string, string> = { "Visão geral": "/", "Pontos de ônibus": "/pontos", "Frota": "/frota", "Publicidade": "/publicidade",
-  "Relatórios": "/relatorios", "Configurações": "/configuracoes" };
+  "Relatórios": "/relatorios", "Configurações": "/configuracoes", "Cadastro cidadão": "/cadastro-endereco" };
 export const go = (item: string) => PAGES[item] && location.assign(PAGES[item]);
 export const GARAGE = "Garagem Vila Mariana";
 export const ETA_MIN = 9; // = dispatch.ETA_MIN na API

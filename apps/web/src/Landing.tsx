@@ -59,6 +59,7 @@ export default function Landing() {
           </div>
         )}
         <p className="lp__micro">{MICROCOPY}</p>
+        <a className="lp__citizen-link" href="/cadastro-endereco">Experimentar cadastro cidadão com leitura de endereço →</a>
       </section>
       <Plate title="Painel operacional em tempo real · 45 s">
         <video className="lp__video" controls muted playsInline preload="metadata" poster="/video/urbanflow-45s.jpg"

@@ -1,0 +1,80 @@
+{
+  "enel-modelo-a.jpg": {
+    "issuer": "ENEL",
+    "address": {
+      "street": "RUA DAS ACACIAS",
+      "number": "145",
+      "complement": "APTO 23",
+      "neighborhood": "VILA MARIANA",
+      "city": "SAO PAULO",
+      "state": "SP",
+      "postal_code": "04101-000"
+    },
+    "split": "held-out synthetic test"
+  },
+  "enel-modelo-b.jpg": {
+    "issuer": "ENEL",
+    "address": {
+      "street": "RUA DO IPE",
+      "number": "78",
+      "complement": "",
+      "neighborhood": "ACLIMACAO",
+      "city": "SAO PAULO",
+      "state": "SP",
+      "postal_code": "01531-020"
+    },
+    "split": "held-out synthetic test"
+  },
+  "vivo-modelo-a.jpg": {
+    "issuer": "VIVO",
+    "address": {
+      "street": "RUA DO SOL",
+      "number": "82",
+      "complement": "CASA 2",
+      "neighborhood": "CENTRO",
+      "city": "CAMPINAS",
+      "state": "SP",
+      "postal_code": "13010-110"
+    },
+    "split": "held-out synthetic test"
+  },
+  "vivo-modelo-b.jpg": {
+    "issuer": "VIVO",
+    "address": {
+      "street": "AVENIDA IPIRANGA",
+      "number": "410",
+      "complement": "",
+      "neighborhood": "CENTRO",
+      "city": "SANTOS",
+      "state": "SP",
+      "postal_code": "11010-071"
+    },
+    "split": "held-out synthetic test"
+  },
+  "claro-modelo-a.jpg": {
+    "issuer": "CLARO",
+    "address": {
+      "street": "AVENIDA BRASIL",
+      "number": "550",
+      "complement": "CASA 2",
+      "neighborhood": "COPACABANA",
+      "city": "RIO DE JANEIRO",
+      "state": "RJ",
+      "postal_code": "22040-001"
+    },
+    "split": "held-out synthetic test"
+  },
+  "claro-modelo-b.jpg": {
+    "issuer": "CLARO",
+    "address": {
+      "street": "RUA DA LAGOA",
+      "number": "31",
+      "complement": "",
+      "neighborhood": "TIJUCA",
+      "city": "RIO DE JANEIRO",
+      "state": "RJ",
+      "postal_code": "20520-110"
+    },
+    "split": "held-out synthetic test"
+  }
+}

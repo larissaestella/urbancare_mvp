@@ -3,16 +3,19 @@ import json
 import os
 from collections import deque
 from contextlib import asynccontextmanager
+from typing import Annotated
 from datetime import datetime
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi import Path as PathParam
 from fastapi.responses import StreamingResponse
+from starlette.concurrency import run_in_threadpool
 from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, ValidationError
 
-from . import demo, dispatch, landing, overview, seed
+from . import address_extraction, citizen, demo, dispatch, landing, overview, seed
 from .clock import SimClock
 from .rules import StopState, evaluate
 
@@ -55,6 +58,27 @@ app = FastAPI(title="UrbanFlow API", lifespan=lifespan)
 @app.get("/health")
 async def health():
     return {"ok": True}
+
+
+@app.post("/address/extract")
+async def extract_document_address(request: Request):
+    """Recebe a fotografia no corpo da requisição; não persiste nem registra seu conteúdo."""
+    content_type = request.headers.get("content-type", "").split(";", 1)[0].lower()
+    if content_type not in {"image/jpeg", "image/png", "image/webp"}:
+        raise HTTPException(415, "Envie uma imagem JPEG, PNG ou WEBP.")
+    chunks = bytearray()
+    async for chunk in request.stream():
+        if len(chunks) + len(chunk) > address_extraction.MAX_IMAGE_BYTES:
+            raise HTTPException(413, "A imagem excede o limite de 10 MB.")
+        chunks.extend(chunk)
+    try:
+        return await run_in_threadpool(address_extraction.extract_address, bytes(chunks))
+    except ValueError as error:
+        raise HTTPException(422, str(error)) from error
+    except TimeoutError as error:
+        raise HTTPException(504, "A leitura excedeu o tempo limite. Tente uma foto mais nítida.") from error
+    except address_extraction.OCREngineError as error:
+        raise HTTPException(503, "O serviço de OCR está indisponível.") from error
 
 
 @app.post("/ingest/readings", status_code=202)
@@ -263,18 +287,86 @@ async def list_alerts(request: Request):
         return await cur.fetchall()
 
 
-@app.get("/stops")
-async def list_stops(request: Request):
-    """Os 142 pontos (o simulador lê as taxas daqui); line/enroute/wait_min/status servem à lista de pontos do front."""
-    async with request.app.state.pool.connection() as conn:
-        cur = await conn.execute(
+async def _stop_rows(conn) -> list[dict]:
+    cur = await conn.execute(
             "SELECT s.id, s.name, s.arrival_rate, s.board_rate, s.steady, s.svg_x, s.svg_y, st.count, st.alert_active, "
             "(SELECT min(line_id) FROM stop_lines sl WHERE sl.stop_id = s.id) AS line, "
             "EXISTS (SELECT 1 FROM dispatches d WHERE d.stop_id = s.id AND d.status = %s) AS enroute "
             "FROM stops s JOIN stop_state st ON st.stop_id = s.id ORDER BY s.id", (dispatch.A_CAMINHO,))
-        rows = await cur.fetchall()
+    rows = await cur.fetchall()
     return [dict(r, wait_min=round(overview.stop_wait(r["count"], r["board_rate"])),
                  status=overview.status(r["count"], r["alert_active"])) for r in rows]
+
+
+@app.get("/stops")
+async def list_stops(request: Request):
+    """Os 142 pontos (o simulador lê as taxas daqui); line/enroute/wait_min/status servem à lista de pontos do front."""
+    async with request.app.state.pool.connection() as conn:
+        return await _stop_rows(conn)
+
+
+Visitor = Annotated[str, PathParam(pattern=citizen.VISITOR_PATTERN)]
+NEARBY_KEYS = ("id", "name", "line", "count", "wait_min", "status", "enroute")
+
+
+def _with_nearby(row: dict, stops: list[dict]) -> dict:
+    nearby = citizen.nearby_stops(row["street"], row["number"], stops)
+    return {**{k: row[k] for k in ("id", *citizen.FIELDS)}, "confirmed_at": row["confirmed_at"],
+            "nearby_stops": [{k: s[k] for k in NEARBY_KEYS} for s in nearby]}
+
+
+@app.get("/citizens/{visitor}/addresses")
+async def list_citizen_addresses(visitor: Visitor, request: Request):
+    """Endereços confirmados deste titular, cada um com os pontos monitorados da mesma via."""
+    async with request.app.state.pool.connection() as conn:
+        cur = await conn.execute(
+            "SELECT * FROM citizen_addresses WHERE visitor = %s ORDER BY confirmed_at DESC, id DESC", (visitor,))
+        rows = await cur.fetchall()
+        stops = await _stop_rows(conn) if rows else []
+    return [_with_nearby(r, stops) for r in rows]
+
+
+@app.post("/citizens/{visitor}/addresses", status_code=201)
+async def save_citizen_address(visitor: Visitor, body: citizen.CitizenAddressIn, request: Request):
+    """Grava o endereço confirmado e devolve os pontos monitorados da mesma via."""
+    values = tuple(getattr(body, f) for f in citizen.FIELDS)
+    async with request.app.state.pool.connection() as conn, conn.transaction():
+        await conn.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", (visitor,))
+        cur = await conn.execute(
+            "SELECT count(*) AS n, count(*) FILTER (WHERE street=%s AND number=%s AND complement=%s "
+            "AND postal_code=%s) AS same FROM citizen_addresses WHERE visitor = %s",
+            (body.street, body.number, body.complement, body.postal_code, visitor))
+        existing = await cur.fetchone()
+        if existing["n"] >= citizen.MAX_ADDRESSES and not existing["same"]:
+            raise HTTPException(409, f"Limite de {citizen.MAX_ADDRESSES} endereços. Exclua um para cadastrar outro.")
+        cur = await conn.execute(
+            f"INSERT INTO citizen_addresses(visitor, {', '.join(citizen.FIELDS)}) "
+            f"VALUES (%s{', %s' * len(citizen.FIELDS)}) "
+            "ON CONFLICT (visitor, street, number, complement, postal_code) DO UPDATE SET "
+            + ", ".join(f"{f}=EXCLUDED.{f}" for f in citizen.FIELDS) + ", confirmed_at=now() RETURNING *",
+            (visitor, *values))
+        row = await cur.fetchone()
+        stops = await _stop_rows(conn)
+    return _with_nearby(row, stops)
+
+
+@app.delete("/citizens/{visitor}/addresses/{address_id}")
+async def delete_citizen_address(visitor: Visitor, address_id: int, request: Request):
+    """Direito de eliminação (LGPD art. 18): o titular apaga um endereço seu."""
+    async with request.app.state.pool.connection() as conn:
+        cur = await conn.execute(
+            "DELETE FROM citizen_addresses WHERE visitor = %s AND id = %s", (visitor, address_id))
+    if not cur.rowcount:
+        raise HTTPException(404, "Endereço não encontrado.")
+    return {"deleted": 1}
+
+
+@app.delete("/citizens/{visitor}/addresses")
+async def delete_all_citizen_addresses(visitor: Visitor, request: Request):
+    """Apaga todos os endereços do titular."""
+    async with request.app.state.pool.connection() as conn:
+        cur = await conn.execute("DELETE FROM citizen_addresses WHERE visitor = %s", (visitor,))
+    return {"deleted": cur.rowcount}
 
 
 @app.post("/landing/events", status_code=202)
