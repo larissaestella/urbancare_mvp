@@ -15,7 +15,7 @@ painel web) e o componente de **Visão Computacional — Extração Automática 
 | `apps/api` | FastAPI + TimescaleDB: lotação, despacho, cadastro cidadão e extração de endereços por OCR |
 | `apps/sim` | Simulador dos sensores dos pontos |
 | `apps/web` | React/Vite: painel do CCO, landing e tela `/cadastro-endereco` |
-| `docs/` | Plano, entrevistas e o relatório `extração-automática-de-endereços.pdf` |
+| `docs/` | Plano e entrevistas |
 
 ## Como rodar
 
@@ -119,7 +119,6 @@ python scripts/install_ocr_model.py           # modelo por.traineddata (tessdata
 export TESSDATA_BEST_DIR=~/.cache/urbancare/tessdata-best
 python -m pytest -q                           # testes unitários e documentos sintéticos com gabarito
 python scripts/generate_address_fixtures.py   # (re)gera os documentos sintéticos
-python scripts/build_address_report.py        # recalcula as métricas e gera o PDF em docs/
 ```
 
 Os documentos de teste ficam em `apps/api/tests/fixtures/address_docs/`: duas fotos sintéticas por empresa,
