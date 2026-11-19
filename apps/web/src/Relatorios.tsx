@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { NAV, go } from "./Overview";
-import { TIPO, reportUrl, type Tipo } from "./Relatorio";
+import { TIPO, type Tipo } from "./Relatorio";
+import { downloadReportPdf } from "./downloadReportPdf";
 import { Button, HighlightPill, KpiStrip, LockIcon, OkPill, Plate, Segmented, Sidebar, StatusShape, TitlePlate, Toggle } from "./ui";
 import checkList from "./assets/check-list.svg";
 import checkToast from "./assets/check-toast.svg";
@@ -9,7 +10,7 @@ import "./relatorios.css";
 
 /* Relatórios (Figma 05, nó 32:111; toast do nó 10:212). Texto verbatim do Figma; rótulo de dados segue §8.1.
    "Gerar relatório" abre a escolha de tipo e destinatário, acrescenta a linha (Em geração → Auditado) e mostra o toast do Figma;
-   "Baixar PDF" abre o relatório imprimível (/relatorios/ver) e chama a impressão do navegador (PLANO §8.6). */
+   "Baixar PDF" gera o arquivo diretamente no navegador a partir do relatório imprimível. */
 type Row = { name: string; to: string; period: string; status: string; tipo: Tipo };
 const RECENTES: Row[] = [
   { name: "Comprovação de campanha · Marca Aurora", to: "Marca Aurora", period: "17/08 – 13/09", status: "Auditado", tipo: "campanha" },
@@ -41,6 +42,7 @@ export default function Relatorios() {
   const [agenda, setAgenda] = useState([true, true, true, false]);
   const [rows, setRows] = useState(RECENTES);
   const [dialog, setDialog] = useState(false);
+  const [baixando, setBaixando] = useState(false);
   const novos = rows.length - RECENTES.length;
   const novosAuditados = rows.slice(0, novos).filter((r) => r.status === "Auditado").length;
 
@@ -61,9 +63,20 @@ export default function Relatorios() {
     }, 2500);
   }
 
-  function baixar(r: Row) {
+  async function baixar(r: Row) {
     if (r.status !== "Auditado") return setToast({ kind: "info", text: `“${r.name}” ainda está ${r.status === "Rascunho" ? "em rascunho" : "em geração"}; o PDF sai quando for auditado.` });
-    window.open(reportUrl(r.tipo, r.name, r.to), "_blank");
+    setBaixando(true);
+    try {
+      await downloadReportPdf(r.tipo, r.name, r.to);
+      setToast({ kind: "info", text: `PDF baixado: ${r.name}` });
+    } catch (error) {
+      setToast({
+        kind: "info",
+        text: error instanceof Error ? `Não foi possível baixar o PDF: ${error.message}` : "Não foi possível baixar o PDF.",
+      });
+    } finally {
+      setBaixando(false);
+    }
   }
 
   return (
@@ -86,7 +99,7 @@ export default function Relatorios() {
                 <tr key={`${r.name}-${i}`}>
                   <td>{r.name}</td><td>{r.to}</td><td>{r.period}</td>
                   <td>{r.status === "Auditado" ? <OkPill>{r.status}</OkPill> : <HighlightPill>{r.status}</HighlightPill>}</td>
-                  <td><Button variant="secondary" onClick={() => baixar(r)}>Baixar PDF</Button></td>
+                  <td><Button variant="secondary" disabled={baixando} onClick={() => baixar(r)}>{baixando ? "Preparando PDF…" : "Baixar PDF"}</Button></td>
                 </tr>
               ))}
             </tbody>
