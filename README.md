@@ -4,6 +4,12 @@ Abrigos de ônibus inteligentes que medem a lotação de forma anônima, dispara
 superlotação e apontam pontos inseguros. Este repositório contém o protótipo completo (API, simulador e
 painel web) e o componente de **Visão Computacional — Extração Automática de Endereços** do MVP CitizenTech.
 
+**Demonstração pública:** <https://urbancare.cloud.run/>
+
+- Painel do CCO: <https://urbancare.cloud.run/>
+- Cadastro por comprovante: <https://urbancare.cloud.run/cadastro-endereco> (ou menu **“Cadastro cidadão”**)
+- API: <https://urbancare.cloud.run/api/docs> · saúde: <https://urbancare.cloud.run/api/health>
+
 | Pasta | Conteúdo |
 |---|---|
 | `apps/api` | FastAPI + TimescaleDB: lotação, despacho, cadastro cidadão e extração de endereços por OCR |
@@ -25,21 +31,43 @@ docker compose up -d --build
 
 Para zerar o banco: `docker compose down -v`.
 
-## Publicação no Render
+## Publicação (Google Cloud Run + Neon)
 
-O `render.yaml` cria um Postgres e **um único serviço web**, gerado pelo `Dockerfile` da raiz. Esse serviço
-roda o front compilado, a API em `/api` e o simulador, tudo no mesmo endereço.
+O `Dockerfile` da raiz gera **uma única imagem**, com o front compilado, a API em `/api` e o simulador, tudo
+no mesmo endereço. A imagem lê a porta da variável `PORT`. O banco é um Postgres gerenciado no
+[Neon](https://neon.tech). O schema usa TimescaleDB quando disponível e funciona sem ele, criando as tabelas
+na inicialização.
 
-1. Faça push do repositório para o GitHub.
-2. No Render, abra **New → Blueprint**, selecione o repositório e clique em **Apply**.
-3. Aguarde o build (cerca de 5–10 min). A URL pública fica no formato `https://urbanflow-xxxx.onrender.com`;
-   o cadastro está em `/cadastro-endereco`.
+1. **Banco:** crie um projeto no Neon (Postgres 16) e copie a *pooled connection string*, com
+   `?sslmode=require`.
+2. **Serviço:** no console do Google Cloud, vá em **Cloud Run → Implantar contêiner → Implantar
+   continuamente a partir de um repositório** e conecte este repositório pelo Cloud Build, com branch
+   `^main$`, tipo **Dockerfile** e origem `/Dockerfile`.
+3. **Configuração:**
+   - região `us-central1`, acesso público e faturamento por solicitação;
+   - instâncias de 0 a 1, 2 CPU, 2 GiB de memória e tempo limite de 300 s;
+   - variáveis `DATABASE_URL` (a string do Neon) e `RUN_SIM=1`.
+4. **Permissões:** se o build falhar com `developerconnect.gitRepositoryLinks.fetchReadToken`, dê à conta de
+   serviço do gatilho os papéis *Developer Connect Read Token Accessor*, *Logs Writer*, *Artifact Registry
+   Writer*, *Cloud Run Admin* e *Service Account User*, e execute o gatilho de novo.
 
-No plano gratuito, o serviço “dorme” após 15 min sem acesso, e a primeira visita leva cerca de 1 min. O
-Postgres gratuito expira em 30 dias. O schema usa TimescaleDB quando disponível e funciona sem ele.
+Cada push no `main` gera uma nova revisão. Pelo terminal, o equivalente é:
+
+```bash
+gcloud run deploy urbanflow --source . --region us-central1 --allow-unauthenticated \
+  --cpu 2 --memory 2Gi --timeout 300 --min-instances 0 --max-instances 1 \
+  --set-env-vars "RUN_SIM=1,DATABASE_URL=postgresql://…?sslmode=require"
+```
+
+Por que não um plano gratuito com 0,1 CPU, como o do Render: nessa CPU, o OCR de uma foto real ultrapassa o
+tempo limite de 20 s por chamada do Tesseract. Com 0,5 CPU, cada foto leva de 19 a 29 s; com 2 CPU, poucos
+segundos. O `render.yaml` continua no repositório como alternativa para planos pagos.
+
+Com 0 instâncias mínimas, a primeira visita após um período sem uso tem partida a frio de alguns segundos. O
+simulador só gera dados enquanto há requisições.
 
 Para testar a imagem localmente:
-`docker build -t urbanflow-render . && docker run -p 8090:8000 -e DATABASE_URL=… urbanflow-render`.
+`docker build -t urbanflow . && docker run -p 8090:8000 -e DATABASE_URL=… urbanflow`.
 
 ## Extração Automática de Endereços
 
@@ -120,4 +148,5 @@ Também dá para rodar os testes dentro do container: `docker compose exec api p
   distinguidas.
 - O titular é identificado só pelo navegador (sem login): quem limpar os dados do navegador perde o acesso à
   lista, e quem tiver o identificador consegue ver e excluir os endereços. Em produção, use autenticação.
-- A extração é síncrona: cada foto leva alguns segundos de CPU, e há tempo limite de 20 s por chamada de OCR.
+- A extração é síncrona: cada foto leva alguns segundos de CPU, e há tempo limite de 20 s por chamada de OCR
+  (HTTP 504 se exceder). Por isso, a publicação precisa de pelo menos 0,5 vCPU.
