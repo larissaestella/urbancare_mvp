@@ -3,6 +3,7 @@ import os
 import re
 import tempfile
 import unicodedata
+from collections import Counter
 from dataclasses import asdict, dataclass
 from difflib import SequenceMatcher
 
@@ -487,6 +488,31 @@ def _parse_address(lines: list[str], issuer: str | None = None) -> Address | Non
     return _parse_claro_customer_block(lines, address) if issuer == "CLARO" else address
 
 
+UNIT_PREFIX = r"(?:SL|SALA|AP|APTO|BL|BLOCO|CJ|LJ|LT|LOTE|QD)"
+
+
+def _clean_street(street: str) -> str:
+    # "RCORA" -> "R CORA": no street name starts with R followed by a consonant.
+    street = re.sub(r"^R(?=[BCDFGJKLMNPQSTVWXZ][A-Z])", "R ", street)
+    # Unit identifiers glued to an O read instead of zero ("SLO" -> "SL 0").
+    return re.sub(r"\b(SL|AP|BL|CJ|LJ|LT|QD)[O0]\b", r"\1 0", street)
+
+
+def _clean_complement(complement: str) -> str:
+    if not re.match(rf"^{UNIT_PREFIX}\b", complement):
+        return complement
+    complement = re.sub(r"\bE[O0]\b", "E 0", complement)
+    # In "SL 0 E 0"-style ranges a lone O/Q/D next to a unit prefix is a misread zero.
+    tokens = complement.split()
+    return " ".join(
+        "0" if token == "O" or (
+            token in {"Q", "D"} and index and re.fullmatch(UNIT_PREFIX, tokens[index - 1])
+            and index + 1 < len(tokens) and tokens[index + 1] == "E"
+        ) else token
+        for index, token in enumerate(tokens)
+    )
+
+
 def _parse_reference_region(text: str) -> Address | None:
     address = Address("", "", "", "", "", "", "")
     lines = []
@@ -498,13 +524,18 @@ def _parse_reference_region(text: str) -> Address | None:
             for label in ("CPF/CNPJ", "RAZAO SOCIAL", "CNPJ MATRIZ", "FILIAL:")
             if normalized.find(label) >= 0
         ]
+        side_box = CLARO_SIDE_BOX.search(normalized)
+        if side_box and side_box.start() > 0:
+            metadata.append(side_box.start())
         if metadata:
             line = line[:min(metadata)]
         if line.strip() and not _plain(line).startswith("NOME DO CLIENTE"):
             lines.append(line.strip(" :-\t"))
     states = "|".join(sorted(BRAZILIAN_STATES, key=len, reverse=True))
     postal_pattern = re.compile(r"\b([0-9]{5})[- ]?([0-9]{3})(?![0-9])")
-    city_pattern = re.compile(rf"^(.+?)\s*[-/ ]\s*({states})\s*$", re.IGNORECASE)
+    city_pattern = re.compile(
+        rf"^(.+?)\s*[-/ ]\s*({states})(?:\s+[|\[\]].*)?\s*$", re.IGNORECASE
+    )
     location_lines = []
     for line in lines:
         postal = postal_pattern.search(line)
@@ -530,10 +561,15 @@ def _parse_reference_region(text: str) -> Address | None:
                 line = unreadable_postal[2]
             line = re.sub(r"^[0-9][0-9 -]*\s+", "", line)
         city = city_pattern.fullmatch(line)
+        separator_lost = False
         if city is None and postal:
             city = re.fullmatch(rf"(.{{3,}}?)({states})", line, re.IGNORECASE)
+            separator_lost = city is not None
         if city:
             address.city = city[1].strip(" ,-")
+            if separator_lost:
+                # The "/" between city and UF is often read as I, J, l or |.
+                address.city = re.sub(r"(?<=[A-Z]{3})[IJl|1/\\]{1,2}$", "", address.city)
             address.state = city[2].upper()
             break
         if line and not postal:
@@ -543,7 +579,7 @@ def _parse_reference_region(text: str) -> Address | None:
             break
         location_lines.pop(0)
     if location_lines:
-        street = location_lines[0]
+        street = _clean_street(location_lines[0])
         neighborhood = re.search(r"\bBAIRRO\s*:?\s*(.+)", street, re.IGNORECASE)
         if neighborhood:
             address.neighborhood = neighborhood[1].strip()
@@ -553,14 +589,14 @@ def _parse_reference_region(text: str) -> Address | None:
                 r"^BAIRRO\s*:\s*", "", location_lines[1], flags=re.IGNORECASE
             ).strip()
         number = re.search(
-            r"(?:,\s*|\s+(?:N[ºO°.]?\s*)?)([0-9]+[A-Z]?)(?=\s*(?:$|,|SL\b|AP\b|CJ\b|BL\b))",
+            r"(?:,\s*|\s+(?:N[ºO°.]?\s*)?)([0-9]+[A-Z]?)(?=\s*[.;]?\s*(?:$|,|SL\b|AP\b|CJ\b|BL\b))",
             street,
             re.IGNORECASE,
         )
         if number:
             address.number = number[1].upper()
             address.street = street[:number.start()].strip(" ,")
-            address.complement = street[number.end():].strip(" ,;:-")
+            address.complement = _clean_complement(street[number.end():].strip(" ,.;:-"))
         else:
             address.street = street
     return address if any(asdict(address).values()) else None
@@ -601,6 +637,8 @@ def _parse_reference_vivo(text: str) -> Address | None:
         remainder,
         flags=re.IGNORECASE,
     ).strip(" ,-")
+    # Text from the neighbouring box (e.g. the due date) may join the line.
+    neighborhood = re.split(r"\s+-\s+|\s+-?\s*[0-9]{2}/[0-9]{2}", neighborhood)[0].strip(" ,-")
     address = _parse_reference_region(
         f"{street[1]} {street[2]}\n{neighborhood}\n{city_line}"
     )
@@ -937,6 +975,251 @@ def _extract_anchored(image: np.ndarray) -> tuple[str | None, float, Address | N
     return issuer, confidence, address
 
 
+def _rotate(image: np.ndarray, angle: float) -> np.ndarray:
+    height, width = image.shape[:2]
+    matrix = cv2.getRotationMatrix2D((width / 2, height / 2), angle, 1)
+    sine, cosine = abs(matrix[0, 1]), abs(matrix[0, 0])
+    target_width = int(np.ceil(height * sine + width * cosine))
+    target_height = int(np.ceil(height * cosine + width * sine))
+    matrix[0, 2] += (target_width - width) / 2
+    matrix[1, 2] += (target_height - height) / 2
+    border = (255, 255, 255) if image.ndim == 3 else 255
+    return cv2.warpAffine(
+        image, matrix, (target_width, target_height),
+        flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=border,
+    )
+
+
+def _text_skew(image: np.ndarray, limit: float = 25.0) -> float:
+    """Estimates the text angle by maximising the sharpness of the row projection.
+
+    Unlike edge-based Hough lines, it is not misled by monitor bezels, table borders
+    or the background, and also works when the page edges are out of frame.
+    """
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) if image.ndim == 3 else image
+    factor = min(1.0, 1000 / max(gray.shape))
+    small = cv2.resize(gray, None, fx=factor, fy=factor, interpolation=cv2.INTER_AREA)
+    binary = cv2.adaptiveThreshold(
+        small, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 15, 10
+    )
+    height, width = binary.shape
+    center = (width / 2, height / 2)
+
+    def sharpness(angle: float) -> float:
+        rotated = cv2.warpAffine(
+            binary, cv2.getRotationMatrix2D(center, angle, 1), (width, height),
+            flags=cv2.INTER_NEAREST,
+        )
+        profile = rotated.sum(axis=1, dtype=np.float64)
+        return float(np.square(np.diff(profile)).sum())
+
+    best = max(np.arange(-limit, limit + 0.01, 1.0), key=sharpness)
+    return float(max(np.arange(best - 1, best + 1.01, 0.1), key=sharpness))
+
+
+def _label_similarity(word: str) -> float:
+    word = re.sub(r"[^A-Z]", "", _plain(word))
+    if len(word) < 6 or not word.startswith("E"):
+        return 0.0
+    return SequenceMatcher(None, word, "ENDERECO").ratio()
+
+
+def _normalize_label(line: str) -> str:
+    """Rewrites a misread "Endereço" label (e.g. "Endeseço", "| Endoroço:").
+
+    Text from a neighbouring column may come before the label, so it is searched
+    among the first words and anything before it is dropped.
+    """
+    words = line.split()
+    for index, word in enumerate(words[:3]):
+        if _label_similarity(word) >= 0.74:
+            return "Endereco: " + " ".join(words[index + 1:])
+    return line
+
+
+CLARO_SIDE_BOX = re.compile(
+    r"\bN[º°O]?\s*D[AO]\s+(?:CONTA|CLIENTE)|\bCPF|\bCNPJ|\bRAZAO|\bFILIAL|\bPERIODO|\bVEJA AQUI"
+)
+
+
+def _anchor_windows(
+    lines: list[tuple[str, tuple[int, int, int, int], float]],
+    issuer: str,
+    shape: tuple[int, int],
+) -> list[tuple[tuple[int, int, int, int], int]]:
+    """Customer block windows, sized in line heights from an anchor word box.
+
+    Returns (box, line height) pairs, most reliable anchors first.
+    """
+    page_height, page_width = shape
+    ordered = sorted(lines, key=lambda item: (item[1][1], item[1][0]))
+    candidates = []
+    states = "|".join(BRAZILIAN_STATES)
+    for text, (left, top, right, bottom), _ in ordered:
+        normalized = _plain(text)
+        line_height = max(8, bottom - top)
+        window = None
+        if issuer == "ENEL":
+            if re.search(r"\bCPF", normalized):
+                window = (2, (left - 2 * line_height, top - 5 * line_height,
+                              left + 30 * line_height, bottom + line_height / 2))
+            elif re.search(r"\bCEP\b", normalized) and re.search(r"[0-9]{5}", normalized):
+                window = (1, (left - 2 * line_height, top - 4 * line_height,
+                              left + 30 * line_height, bottom + line_height / 2))
+        elif issuer == "CLARO":
+            # The fiscal note at the bottom repeats "NOME DO CLIENTE ENDERECO".
+            if top > page_height * 0.5 or ("ENDERECO" in normalized and "NOME" in normalized):
+                continue
+            if "NOME DO CLI" in normalized or re.match(r"^\W*E? ?DO CLIENTE\b", normalized):
+                window = (3, (left - 5 * line_height, top - 1.5 * line_height,
+                              left + 22 * line_height, top + 6 * line_height))
+            elif "ENDERECO DA" in normalized:
+                window = (2, (left - 3 * line_height, top - 2.5 * line_height,
+                              left + 22 * line_height, top + 5 * line_height))
+            elif re.search(rf"[A-Z]{{3,}}\s+({states})$", normalized) or re.search(
+                r"\b[0-9]{5}-[0-9]{3}\b", normalized
+            ):
+                window = (1, (left - 12 * line_height, top - 4.5 * line_height,
+                              left + 16 * line_height, bottom + line_height))
+            if window:
+                # Stop before the account box on the right (CPF/CNPJ, razão social...).
+                x0, y0, x1, y1 = window[1]
+                side = [
+                    box[0] for value, box, _ in ordered
+                    if CLARO_SIDE_BOX.search(_plain(value))
+                    and box[0] > left + 4 * line_height and box[3] > y0 and box[1] < y1
+                ]
+                if side:
+                    window = (window[0], (x0, y0, min(x1, min(side) - line_height / 2), y1))
+        elif issuer == "VIVO":
+            if "FORNECEDOR" in normalized or "EMISSOR" in normalized:
+                continue
+            similarity = max((_label_similarity(word) for word in text.split()[:3]), default=0)
+            if similarity >= 0.74:
+                window = (1 + similarity, (left - line_height, top - 3 * line_height,
+                                           page_width, bottom + 3 * line_height))
+            elif "CADASTRO DO ASSINANTE" in normalized:
+                window = (1, (left - line_height, bottom, page_width, bottom + 7 * line_height))
+        if window:
+            candidates.append((window[0], window[1], line_height))
+    boxes = []
+    for _, (x0, y0, x1, y1), line_height in sorted(candidates, key=lambda item: -item[0]):
+        box = (int(max(0, x0)), int(max(0, y0)),
+               int(min(page_width, x1)), int(min(page_height, y1)))
+        if box[2] - box[0] > 50 and box[3] - box[1] > 20 and box not in [b for b, _ in boxes]:
+            boxes.append((box, line_height))
+    return boxes
+
+
+def _vote(
+    reads: list[tuple[Address, float]],
+) -> tuple[Address, float, bool]:
+    """Confidence-weighted vote per field; returns the address, confidence and unanimity."""
+    values, unanimous = {}, True
+    for field in asdict(Address("", "", "", "", "", "", "")):
+        found = [
+            (getattr(address, field), confidence)
+            for address, confidence in reads if getattr(address, field)
+        ]
+        if not found:
+            values[field] = ""
+            continue
+        weights: Counter = Counter()
+        for value, confidence in found:
+            weights[re.sub(r"[^A-Z0-9]", "", _plain(value))] += max(confidence, 0.05)
+        winner = weights.most_common(1)[0][0]
+        members = [
+            value for value, _ in found
+            if re.sub(r"[^A-Z0-9]", "", _plain(value)) == winner
+        ]
+        if field in REQUIRED_ADDRESS_FIELDS and len(members) < len(reads):
+            unanimous = False
+        values[field] = Counter(members).most_common(1)[0][0]
+    address = Address(**values)
+    agreeing = [
+        confidence for candidate, confidence in reads
+        if all(
+            _plain(getattr(candidate, field)) == _plain(getattr(address, field))
+            for field in REQUIRED_ADDRESS_FIELDS
+        )
+    ]
+    confidence = max(agreeing) if agreeing else max(confidence for _, confidence in reads)
+    return address, round(confidence, 2), unanimous
+
+
+def _window_lines(text: list[str], issuer: str) -> list[str]:
+    if issuer == "VIVO":
+        return [_normalize_label(line) for line in text]
+    if issuer == "CLARO":
+        # Noise above the block is dropped; the block starts at "NOME DO CLIENTE".
+        start = next(
+            (index for index, line in enumerate(text)
+             if re.search(r"\bD[O0]\s*CLIENTE\b", _plain(line))),
+            None,
+        )
+        if start is not None:
+            return text[start:]
+    return text
+
+
+def _extract_windowed(
+    image: np.ndarray, issuer: str | None
+) -> tuple[str | None, float, Address | None]:
+    """Locates the customer block, rectifies it locally and votes on several readings.
+
+    Photos taken at an angle (e.g. of a screen or a curved page) have keystone
+    distortion, so one global rotation leaves residual slope that breaks lines
+    apart. Here the page is levelled by text, the block is located from word boxes,
+    then each window is levelled again on its own before being re-read.
+    """
+    angle = _text_skew(image)
+    page = _rotate(image, angle) if abs(angle) >= 0.5 else image
+    gray = cv2.cvtColor(page, cv2.COLOR_BGR2GRAY)
+    full = cv2.divide(gray, cv2.GaussianBlur(gray, (0, 0), 25), scale=255)
+    # Anchors are located on a reduced copy (fast); windows are cut from the full page.
+    scale = min(1.0, (4_000_000 / full.size) ** 0.5)
+    scan = cv2.resize(full, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+    lines, confidence = _ocr_data(scan, psm=11, preprocessed=True)
+    issuer = _issuer([text for text, _, _ in lines]) or issuer
+    if issuer is None:
+        return None, confidence, None
+    best = None
+    for box, line_height in _anchor_windows(lines, issuer, scan.shape)[:3]:
+        left, top, right, bottom = (int(value / scale) for value in box)
+        crop = full[top:bottom, left:right]
+        local_angle = _text_skew(crop, limit=12)
+        if abs(local_angle) >= 0.3:
+            crop = _rotate(crop, local_angle)
+        line_height /= scale
+        reads = []
+        # Three readings with different text sizes and binarisations for the vote.
+        for target_height, binarize in ((40, False), (40, True), (56, False)):
+            factor = min(4.0, max(0.5, target_height / line_height),
+                         (MAX_IMAGE_PIXELS / crop.size) ** 0.5)
+            enlarged = cv2.resize(crop, None, fx=factor, fy=factor, interpolation=cv2.INTER_CUBIC)
+            if binarize:
+                enlarged = cv2.threshold(
+                    cv2.GaussianBlur(enlarged, (3, 3), 0), 0, 255,
+                    cv2.THRESH_BINARY + cv2.THRESH_OTSU,
+                )[1]
+            enlarged = cv2.copyMakeBorder(enlarged, 20, 20, 20, 20, cv2.BORDER_CONSTANT, value=255)
+            text, read_confidence = _read_ocr(enlarged)
+            parsed = _parse_document_address(
+                _window_lines(text, issuer), issuer, prefer_reference=True
+            )
+            reads.append((parsed or Address("", "", "", "", "", "", ""), read_confidence))
+        address, window_confidence, unanimous = _vote(reads)
+        if not unanimous:
+            window_confidence = min(window_confidence, 0.84)
+        if best is None or _address_score(address) > _address_score(best[1]):
+            best = (window_confidence, address)
+        if _has_required_address(address):
+            break
+    if best is None or not any(asdict(best[1]).values()):
+        return issuer, confidence, None
+    return issuer, best[0], best[1]
+
+
 def extract_address(raw: bytes) -> dict:
     if not raw or len(raw) > MAX_IMAGE_BYTES:
         raise ValueError("Imagem vazia ou acima do limite de 10 MB.")
@@ -981,14 +1264,28 @@ def extract_address(raw: bytes) -> dict:
     has_primary_label = bool(
         issuer and _plain(PRIMARY_ADDRESS_LABELS[issuer]) in _plain(full_text)
     )
+    windowed_complete = False
     if not (has_primary_label and _has_required_address(result)):
-        anchored_issuer, anchored_confidence, anchored_address = _extract_anchored(page)
-        if anchored_address is not None and any(asdict(anchored_address).values()):
-            issuer = anchored_issuer or issuer
-            result = _merge_addresses(anchored_address, result)
-            confidence = anchored_confidence
-        elif issuer is None:
-            issuer = anchored_issuer
+        windowed_issuer, windowed_confidence, windowed_address = _extract_windowed(
+            rectified, issuer
+        )
+        if _has_required_address(windowed_address):
+            issuer = issuer or windowed_issuer
+            result, confidence, windowed_complete = windowed_address, windowed_confidence, True
+        else:
+            anchored_issuer, anchored_confidence, anchored_address = _extract_anchored(page)
+            if anchored_address is not None and any(asdict(anchored_address).values()):
+                issuer = anchored_issuer or issuer
+                result = _merge_addresses(anchored_address, result)
+                confidence = anchored_confidence
+            elif issuer is None:
+                issuer = anchored_issuer or windowed_issuer
+            if windowed_address is not None and (
+                result is None or _address_score(windowed_address) > _address_score(result)
+            ):
+                issuer = issuer or windowed_issuer
+                result = _merge_addresses(windowed_address, result)
+                confidence = min(confidence, windowed_confidence)
 
     if issuer is None:
         header = page[:max(1, int(height * 0.07))]
@@ -1005,7 +1302,8 @@ def extract_address(raw: bytes) -> dict:
         issuer and _plain(PRIMARY_ADDRESS_LABELS[issuer]) in detected_text
     )
     if (
-        not deskew_corrected and issuer in ADDRESS_REGIONS and not has_primary_label
+        not windowed_complete and not deskew_corrected
+        and issuer in ADDRESS_REGIONS and not has_primary_label
     ):
         ratio = width / height
         valid_ratio = 0.25 < ratio < 0.4 if issuer == "ENEL" else 0.6 < ratio < 0.85

@@ -207,3 +207,42 @@ def test_extract_endpoint_rejects_oversized_upload():
         headers={"content-type": "image/jpeg"},
     )
     assert response.status_code == 413
+
+
+def test_text_skew_recovers_rotation_of_text_lines():
+    page = np.full((900, 1200), 255, np.uint8)
+    for row in range(120, 800, 60):
+        cv2.putText(page, "RUA DO HORIZONTE AZUL 1030 ALDEOTA", (60, row),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1.2, 0, 3)
+    rotated = extraction._rotate(page, -7)
+    angle = extraction._text_skew(rotated)
+    assert abs(angle - 7) < 1
+
+
+@pytest.mark.parametrize(
+    ("line", "expected"),
+    [
+        ("Enderego: R CORA CORALINA", "Endereco: R CORA CORALINA"),
+        ("| ENDERECO R CORA", "Endereco: R CORA"),
+        ("eneiro 2024 Vencimento", "eneiro 2024 Vencimento"),
+    ],
+)
+def test_normalize_label_accepts_only_misread_endereco(line, expected):
+    assert extraction._normalize_label(line) == expected
+
+
+@pytest.mark.parametrize(
+    ("complement", "expected"),
+    [("SL Q E 0", "SL 0 E 0"), ("SL O EO", "SL 0 E 0"), ("AP 12 BL D", "AP 12 BL D")],
+)
+def test_clean_complement_fixes_zero_misreads_only(complement, expected):
+    assert extraction._clean_complement(complement) == expected
+
+
+def test_vote_prefers_confident_reading_over_noisy_ones():
+    clean = extraction.Address("RUA A", "10", "", "CENTRO", "BAURU", "SP", "17000-000")
+    noisy = extraction.Address("O", "10", "", "CENTRO", "BAURU", "SP", "17000-000")
+    noisy2 = extraction.Address("RUA AA", "10", "", "CENTRO", "BAURU", "SP", "17000-000")
+    address, _, unanimous = extraction._vote([(clean, 0.9), (noisy, 0.3), (noisy2, 0.3)])
+    assert address.street == "RUA A"
+    assert not unanimous
