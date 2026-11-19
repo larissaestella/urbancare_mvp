@@ -11,7 +11,7 @@ with sync_playwright() as p:
     errs = []
     pg.on("pageerror", lambda e: errs.append(str(e)))
     pg.goto("http://localhost:5173/")
-    pg.evaluate("localStorage.removeItem('urbanflow.monitorando')")
+    pg.evaluate("localStorage.removeItem('urbancare.monitorando')")
     pg.reload()
     row = pg.locator(".alert-row").filter(has=pg.get_by_role("button", name="Monitorar")).first
     name = row.locator(".t-metric-s").inner_text()
@@ -59,7 +59,7 @@ with sync_playwright() as p:
     pg.keyboard.press("Escape")
     expect(dlg).to_have_count(0)
     print("ok: Publicidade Ver todos lista os 38 painéis")
-    pg.evaluate("localStorage.removeItem('urbanflow.monitorando')")
+    pg.evaluate("localStorage.removeItem('urbancare.monitorando')")
     print("erros de página:", errs)
     assert not errs
     b.close()

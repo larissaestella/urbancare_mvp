@@ -2,7 +2,7 @@
 """Grava o vídeo demonstrativo de 45 s da landing (docx Sprint 2, smoke test) dirigindo o painel com o Playwright.
 Roteiro: Visão geral → alerta da Paulista → Enviar extra → Detalhe (relógio a 30× até o extra chegar, com corte na espera)\n→ histórico semanal → Publicidade. A rede não aparece com o relógio andando (a deriva do simulador contradiria a cena).
 Pré-requisito: docker compose up; pip install playwright; ffmpeg. ALTERA o estado (despacho, relógio): no fim pausa e
-recarrega o Demo. Uso: python3 scripts/gravar_video.py <pasta temporária> → apps/web/public/video/urbanflow-45s.mp4"""
+recarrega o Demo. Uso: python3 scripts/gravar_video.py <pasta temporária> → apps/web/public/video/urbancare-45s.mp4"""
 import json
 import pathlib
 import subprocess
@@ -11,7 +11,7 @@ import time
 import urllib.request
 
 API, WEB = "http://localhost:8000", "http://localhost:5173"
-OUT = pathlib.Path(__file__).resolve().parents[1] / "apps/web/public/video/urbanflow-45s.mp4"
+OUT = pathlib.Path(__file__).resolve().parents[1] / "apps/web/public/video/urbancare-45s.mp4"
 W, H = 1440, 810
 
 
@@ -117,7 +117,7 @@ def main(tmp):
         for _ in range(10):
             pg.mouse.wheel(0, 40); time.sleep(0.08)
         time.sleep(max(1.0, 42 - kept()))
-        caption(pg, "UrbanFlow — solicite o piloto gratuito")
+        caption(pg, "UrbanCare — solicite o piloto gratuito")
         time.sleep(3.5)
         total = time.monotonic() - t0
         video = pg.video.path()

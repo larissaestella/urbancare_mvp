@@ -63,7 +63,7 @@ export function useStops(): StopListRow[] | null {
   return rows;
 }
 
-const MONITOR_KEY = "urbanflow.monitorando";
+const MONITOR_KEY = "urbancare.monitorando";
 const readMonitor = (): string[] => { try { return JSON.parse(localStorage.getItem(MONITOR_KEY) ?? "[]"); } catch { return []; } };
 
 /** Pontos que o operador marcou para acompanhar (conveniência do navegador; não vai para a API). */

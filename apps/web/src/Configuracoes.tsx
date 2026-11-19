@@ -171,7 +171,7 @@ export default function Configuracoes() {
         <Dialog title="Sessões ativas" onClose={() => setDialog(null)}>
           <ul className="cf-sessions">
             <li><div><strong>Este computador</strong><span>Chrome · São Paulo · ativo agora</span></div><span className="cf-sessions__now">Esta sessão</span></li>
-            {celular && <li><div><strong>Celular</strong><span>App UrbanFlow · São Paulo · último acesso hoje, 07:12</span></div>
+            {celular && <li><div><strong>Celular</strong><span>App UrbanCare · São Paulo · último acesso hoje, 07:12</span></div>
               <Button variant="secondary" onClick={() => { setCelular(false); setToast("Sessão do celular encerrada."); }}>Encerrar</Button></li>}
           </ul>
         </Dialog>

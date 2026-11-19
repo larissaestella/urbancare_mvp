@@ -130,7 +130,7 @@ export function Sidebar({ items, active, group = "Painel", onNavigate }: { items
           <path d="M10 7h12v11H14v7h-4z" fill="var(--totem-ink)" /><rect x="14" y="10" width="5" height="2" fill="var(--signal-yellow)" />
           <rect x="14" y="14" width="5" height="2" fill="var(--signal-yellow)" />
         </svg>
-        <span className="totem__name">UrbanFlow</span>
+        <span className="totem__name">UrbanCare</span>
       </div>
       <div className="t-overline totem__group">{group}</div>
       <nav className="totem__nav">

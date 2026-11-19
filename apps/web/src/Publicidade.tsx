@@ -117,7 +117,7 @@ function exportCsv(range: Range, day: number) {
   const by: readonly (readonly [string, number])[] = range === "Diária" ? SLOTS.map((s, i) => [s, slotPeople(day)[i]] as const)
     : range === "Semanal" ? DAYS.map((d, c) => [d, dayPeople(c)] as const) : MONTH_WEEKS;
   const lines = [
-    ["UrbanFlow · Audiência dos painéis", period], [],
+    ["UrbanCare · Audiência dos painéis", period], [],
     ["Pessoas expostas", Math.round(r.people)], ["Tempo médio de exposição", r.exposure], ["Audiência qualificada", r.qualified], ["CPM sugerido", r.cpm], [],
     [range === "Diária" ? "Faixa horária" : range === "Semanal" ? "Dia" : "Semana", "Pessoas"], ...by.map(([l, v]) => [l, Math.round(v)]), [],
     ["Painel", "Pessoas", "Tempo médio", "CPM sugerido"], ...RANKING.map(([n, , t, c], i) => [n, Math.round(RANK_WEEK[i] * scale), t, c]), [],
@@ -126,7 +126,7 @@ function exportCsv(range: Range, day: number) {
   const csv = "\ufeff" + lines.map((l) => l.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(";")).join("\r\n");
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-  a.download = `urbanflow-audiencia-${range.toLowerCase()}.csv`;
+  a.download = `urbancare-audiencia-${range.toLowerCase()}.csv`;
   a.click();
   URL.revokeObjectURL(a.href);
 }
@@ -252,7 +252,7 @@ function Compare() {
           </ul>
         </div>
         <div className="pb-compare__uf">
-          <div className="t-overline">Com UrbanFlow</div>
+          <div className="t-overline">Com UrbanCare</div>
           <ul>
             <li>Pessoas e tempo de exposição medidos</li><li>Preço por faixa horária (premium no pico)</li><li>Relatório auditado por campanha</li>
           </ul>

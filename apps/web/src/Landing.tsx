@@ -5,7 +5,7 @@ import "./landing.css";
 
 // Copy verbatim do docx Sprint 2 (Smoke Test + CTA), sem os colchetes do botão.
 const HEADLINE = "Reduza em até 9% os custos de frota ociosa com monitoramento IoT em tempo real";
-const SUBHEADLINE = "Teste o UrbanFlow sem custo por 30 dias em até 3 pontos críticos da sua concessionária.";
+const SUBHEADLINE = "Teste o UrbanCare sem custo por 30 dias em até 3 pontos críticos da sua concessionária.";
 const MICROCOPY = "✓ Instalação rápida em 48h · 100% em conformidade com a LGPD · Sem fidelidade contratual";
 export const CTA = { A: "QUERO SOLICITAR O PILOTO GRATUITO →", B: "AGENDAR DEMONSTRAÇÃO TÉCNICA DO PAINEL CCO (15 MIN) →" } as const;
 const NEXT = { A: "a instalação do lote piloto", B: "a demonstração técnica do painel CCO" } as const;
@@ -44,7 +44,7 @@ export default function Landing() {
             <path d="M10 7h12v11H14v7h-4z" fill="var(--totem-ink)" /><rect x="14" y="10" width="5" height="2" fill="var(--signal-yellow)" />
             <rect x="14" y="14" width="5" height="2" fill="var(--signal-yellow)" />
           </svg>
-          <span>UrbanFlow</span>
+          <span>UrbanCare</span>
         </div>
         <h1 className="lp__headline">{HEADLINE}</h1>
         <p className="lp__sub">{SUBHEADLINE}</p>
@@ -62,9 +62,9 @@ export default function Landing() {
         <a className="lp__citizen-link" href="/cadastro-endereco">Experimentar cadastro cidadão com leitura de endereço →</a>
       </section>
       <Plate title="Painel operacional em tempo real · 45 s">
-        <video className="lp__video" controls muted playsInline preload="metadata" poster="/video/urbanflow-45s.jpg"
+        <video className="lp__video" controls muted playsInline preload="metadata" poster="/video/urbancare-45s.jpg"
           aria-label="Vídeo demonstrativo de 45 segundos: alerta, envio do ônibus extra e fila esvaziando">
-          <source src="/video/urbanflow-45s.mp4" type="video/mp4" />
+          <source src="/video/urbancare-45s.mp4" type="video/mp4" />
         </video>
       </Plate>
     </main>

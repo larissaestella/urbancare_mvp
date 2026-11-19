@@ -64,7 +64,7 @@ def _page(canvas, document) -> None:
     canvas.line(18 * mm, 15 * mm, 192 * mm, 15 * mm)
     canvas.setFont("Helvetica", 8)
     canvas.setFillColor(colors.HexColor("#55585e"))
-    canvas.drawString(18 * mm, 10 * mm, "UrbanFlow · Extração automática de endereços · Dados de teste sintéticos")
+    canvas.drawString(18 * mm, 10 * mm, "UrbanCare · Extração automática de endereços · Dados de teste sintéticos")
     canvas.drawRightString(192 * mm, 10 * mm, f"{document.page}")
     canvas.restoreState()
 

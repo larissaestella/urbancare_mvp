@@ -38,7 +38,7 @@ with sync_playwright() as p:
     with pg.expect_download() as dl:
         pg.get_by_role("button", name="Exportar relatório ↓").click()
     csv = open(dl.value.path(), encoding="utf-8-sig").read()
-    assert dl.value.suggested_filename == "urbanflow-audiencia-semanal.csv", dl.value.suggested_filename
+    assert dl.value.suggested_filename == "urbancare-audiencia-semanal.csv", dl.value.suggested_filename
     assert '"Pessoas expostas";"412000"' in csv and '"Av. Paulista, 1578";"28400"' in csv, csv[:300]
     print("ok: relatório auditado abre o PDF da campanha; compartilhar copia o link; Exportar baixa o CSV semanal")
     pg.get_by_role("button", name="Mensal").click()

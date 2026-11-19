@@ -126,7 +126,7 @@ export default function AddressRegistration() {
       await call("DELETE", `${base}/${item.id}`);
       setSaved((list) => (list ?? []).filter((other) => other.id !== item.id));
       if (current?.id === item.id) { setCurrent(null); setConfirmed(false); }
-      setNotice("Endereço excluído do UrbanFlow.");
+      setNotice("Endereço excluído do UrbanCare.");
     } catch {
       setError("Não foi possível excluir agora. Tente novamente.");
     }
@@ -139,7 +139,7 @@ export default function AddressRegistration() {
       setSaved([]);
       setCurrent(null);
       setConfirmed(false);
-      setNotice("Todos os seus endereços foram excluídos do UrbanFlow.");
+      setNotice("Todos os seus endereços foram excluídos do UrbanCare.");
     } catch {
       setError("Não foi possível excluir agora. Tente novamente.");
     }
@@ -151,13 +151,13 @@ export default function AddressRegistration() {
   return (
     <main className="address-page">
       <header className="address-header">
-        <a className="address-brand" href="/" aria-label="UrbanFlow, início">
-          <span className="address-brand__mark">U</span> UrbanFlow
+        <a className="address-brand" href="/" aria-label="UrbanCare, início">
+          <span className="address-brand__mark">U</span> UrbanCare
         </a>
         <span className="address-header__tag">CADASTRO CIDADÃO</span>
       </header>
       <section className="address-content">
-        <a className="address-back" href="/">← Voltar ao UrbanFlow</a>
+        <a className="address-back" href="/">← Voltar ao UrbanCare</a>
         <p className="address-eyebrow">MVP CITIZENTECH · EXTRAÇÃO AUTOMÁTICA</p>
         <h1>Confirme seu endereço</h1>
         <p className="address-intro">Envie uma foto de uma conta Enel, Vivo ou Claro. O endereço de instalação será preenchido para você revisar.</p>
@@ -192,7 +192,7 @@ export default function AddressRegistration() {
             <p className="address-hint">O OCR pode errar. Confira e corrija os campos antes de continuar.</p>
             <label className="address-consent">
               <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} />
-              <span>Autorizo o UrbanFlow a guardar somente este endereço para indicar os pontos de ônibus monitorados perto de mim. Posso excluí-lo a qualquer momento.</span>
+              <span>Autorizo o UrbanCare a guardar somente este endereço para indicar os pontos de ônibus monitorados perto de mim. Posso excluí-lo a qualquer momento.</span>
             </label>
             <button type="submit" className="address-confirm" disabled={!canConfirm}>{saving ? "Salvando…" : "Confirmar endereço"}</button>
           </form>
@@ -247,10 +247,10 @@ function formatAddress(a: Address): string {
 
 function NearbyList({ stops }: { stops: NearbyStop[] }) {
   if (!stops.length) {
-    return <p className="address-nearby-empty">Ainda não há ponto monitorado pelo UrbanFlow nesta via. Seu endereço ajuda a priorizar os próximos abrigos inteligentes.</p>;
+    return <p className="address-nearby-empty">Ainda não há ponto monitorado pelo UrbanCare nesta via. Seu endereço ajuda a priorizar os próximos abrigos inteligentes.</p>;
   }
   return (
-    <ul className="address-stops" aria-label="Pontos UrbanFlow nesta via">
+    <ul className="address-stops" aria-label="Pontos UrbanCare nesta via">
       {stops.map((stop) => (
         <li key={stop.id} className={`address-stop address-stop--${stop.status}`}>
           <strong>{stop.name}</strong>

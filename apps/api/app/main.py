@@ -52,7 +52,7 @@ async def lifespan(app: FastAPI):
     await pool.close()
 
 
-app = FastAPI(title="UrbanFlow API", lifespan=lifespan)
+app = FastAPI(title="UrbanCare API", lifespan=lifespan)
 
 
 @app.get("/health")

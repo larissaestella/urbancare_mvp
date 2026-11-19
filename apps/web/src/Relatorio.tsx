@@ -35,7 +35,7 @@ export default function Relatorio() {
   const dest = q.get("dest") || "Concessionária Via Sul";
 
   useEffect(() => {
-    document.title = `${titulo} · UrbanFlow`;
+    document.title = `${titulo} · UrbanCare`;
     if (q.get("print") === "1") window.setTimeout(() => window.print(), 400);
   }, []);
 
@@ -47,7 +47,7 @@ export default function Relatorio() {
       </div>
       <article className="rp-sheet">
         <header className="rp-head">
-          <div className="rp-head__brand">UrbanFlow · {t.nome}</div>
+          <div className="rp-head__brand">UrbanCare · {t.nome}</div>
           <h1 className="t-display">{titulo}</h1>
           <dl className="rp-meta">
             <div><dt>Destinatário</dt><dd>{dest}</dd></div>

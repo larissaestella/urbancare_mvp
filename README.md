@@ -1,4 +1,4 @@
-# UrbanFlow
+# UrbanCare
 
 Abrigos de ônibus inteligentes que medem a lotação de forma anônima, disparam ônibus extras antes da
 superlotação e apontam pontos inseguros. Este repositório contém o protótipo completo (API, simulador e
@@ -54,7 +54,7 @@ na inicialização.
 Cada push no `main` gera uma nova revisão. Pelo terminal, o equivalente é:
 
 ```bash
-gcloud run deploy urbanflow --source . --region us-central1 --allow-unauthenticated \
+gcloud run deploy urbancare --source . --region us-central1 --allow-unauthenticated \
   --cpu 2 --memory 2Gi --timeout 300 --min-instances 0 --max-instances 1 \
   --set-env-vars "RUN_SIM=1,DATABASE_URL=postgresql://…?sslmode=require"
 ```
@@ -67,7 +67,7 @@ Com 0 instâncias mínimas, a primeira visita após um período sem uso tem part
 simulador só gera dados enquanto há requisições.
 
 Para testar a imagem localmente:
-`docker build -t urbanflow . && docker run -p 8090:8000 -e DATABASE_URL=… urbanflow`.
+`docker build -t urbancare . && docker run -p 8090:8000 -e DATABASE_URL=… urbancare`.
 
 ## Extração Automática de Endereços
 
@@ -102,7 +102,7 @@ revisado, confirmado e usado pelo MVP.
 2. Tela `/cadastro-endereco`, acessível pelo item **“Cadastro cidadão”** no menu lateral do painel: mostra os
    campos editáveis e a confiança do OCR, e pede revisão.
 3. `POST /citizens/{id}/addresses`: com **consentimento explícito**, grava o endereço confirmado, validando UF
-   e CEP, e devolve os **pontos UrbanFlow da mesma via**, ordenados pela distância de numeração, com lotação,
+   e CEP, e devolve os **pontos UrbanCare da mesma via**, ordenados pela distância de numeração, com lotação,
    espera estimada e aviso de ônibus extra a caminho. Cada pessoa pode ter até 10 endereços (casa, trabalho…);
    reenviar o mesmo endereço só atualiza a data. Sem ponto na via, o endereço ajuda a priorizar novas
    instalações.
@@ -116,7 +116,7 @@ revisado, confirmado e usado pelo MVP.
 cd apps/api
 pip install -r requirements.txt               # requer tesseract-ocr e tesseract-ocr-por instalados no sistema
 python scripts/install_ocr_model.py           # modelo por.traineddata (tessdata_best) com checksum
-export TESSDATA_BEST_DIR=~/.cache/urbanflow/tessdata-best
+export TESSDATA_BEST_DIR=~/.cache/urbancare/tessdata-best
 python -m pytest -q                           # testes unitários e documentos sintéticos com gabarito
 python scripts/generate_address_fixtures.py   # (re)gera os documentos sintéticos
 python scripts/build_address_report.py        # recalcula as métricas e gera o PDF em docs/

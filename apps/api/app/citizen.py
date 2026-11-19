@@ -1,4 +1,4 @@
-"""Cadastro cidadão: guarda só o endereço confirmado pelo usuário e o liga aos pontos UrbanFlow da mesma via."""
+"""Cadastro cidadão: guarda só o endereço confirmado pelo usuário e o liga aos pontos UrbanCare da mesma via."""
 import re
 import unicodedata
 from typing import Literal

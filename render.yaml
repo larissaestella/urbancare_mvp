@@ -1,14 +1,14 @@
 # Blueprint do Render: um banco Postgres e um serviço web (front + API + simulador) no plano gratuito.
 databases:
-  - name: urbanflow-db
+  - name: urbancare-db
     plan: free
-    databaseName: urbanflow
-    user: urbanflow
+    databaseName: urbancare
+    user: urbancare
     postgresMajorVersion: "16"
 
 services:
   - type: web
-    name: urbanflow
+    name: urbancare
     runtime: docker
     plan: free
     dockerfilePath: ./Dockerfile
@@ -18,7 +18,7 @@ services:
     envVars:
       - key: DATABASE_URL
         fromDatabase:
-          name: urbanflow-db
+          name: urbancare-db
           property: connectionString
       - key: RUN_SIM
         value: "1"

@@ -1,4 +1,4 @@
-# UrbanFlow — Registro das entrevistas de escopo (protótipo)
+# UrbanCare — Registro das entrevistas de escopo (protótipo)
 
 Data: 2026-10-22 · Entrevistado: Rafael (Tecnologia/IA) · 8 rodadas.
 Fontes lidas: `Downloads/UrbanFlow - Sprint 2 - Business Intelligence e Startup Development.docx` (arquitetura, smoke test, pré-venda, Wizard of Oz, primeiro valor, 2 telas embutidas), `PRODUCT.md`, `DESIGN.md`, `docs/referencias/*` (mockup Figma estático `cELqLax184bs562qqh0Vwh`).

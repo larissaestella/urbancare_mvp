@@ -1,5 +1,5 @@
 ---
-name: UrbanFlow
+name: UrbanCare
 description: Live stop crowding, wait time and ad audience, set as São Paulo bus-stop signage.
 colors:
   totem-ink: "#16181B"
@@ -189,13 +189,13 @@ components:
     textColor: "{colors.plate-white}"
 ---
 
-# Design System: UrbanFlow
+# Design System: UrbanCare
 
 ## Overview
 
 **Creative North Star: "Placa de Ponto"**
 
-UrbanFlow is drawn as São Paulo bus-stop signage. Every panel is an enamel stop plate: a white body under a heavy ink header band carrying a condensed uppercase title. Every line number is a small ink plate chip. The sidebar is the stop totem, an ink column whose navigation reads as stops strung along a thin line, with the current stop lit in signage yellow. The page sits on concrete grey, the way a plate sits on a pavement pole.
+UrbanCare is drawn as São Paulo bus-stop signage. Every panel is an enamel stop plate: a white body under a heavy ink header band carrying a condensed uppercase title. Every line number is a small ink plate chip. The sidebar is the stop totem, an ink column whose navigation reads as stops strung along a thin line, with the current stop lit in signage yellow. The page sits on concrete grey, the way a plate sits on a pavement pole.
 
 The density is that of a working operations tool, not a showcase. A single ink departure-board strip carries the live KPIs, and rows of equal-height plates below it say where the network hurts and what to do about it. Colour is signage colour: yellow marks brand and "here/now", green, yellow and red carry status (always paired with a shape), SPTrans blue carries audience and info data on a locked five-step ramp. Depth comes from ink against white against concrete, never from shadow.
 

@@ -17,7 +17,7 @@ Figma only (médium-fidelity static mockup). Deliverable lives in Figma file `cE
 
 ## Product Purpose
 
-Bus concessionaires and ad companies decide on estimates, with no real-time data on people flow, wait time, or engagement at bus stops. UrbanFlow counts people anonymously via partner cameras already installed at stops, processed at the edge, and turns that into operational decisions (extra buses) and ad-audience proof (CPM, exposure time).
+Bus concessionaires and ad companies decide on estimates, with no real-time data on people flow, wait time, or engagement at bus stops. UrbanCare counts people anonymously via partner cameras already installed at stops, processed at the edge, and turns that into operational decisions (extra buses) and ad-audience proof (CPM, exposure time).
 
 Success for this artifact: reads as a credible, realistic product; test goal ≥ 6/7 approve, ≥ 80% understand unaided, mean utility score ≥ 8.
 
@@ -40,7 +40,7 @@ Screens: 00 Capa · 01 Operação — Visão geral · 02 Operação — Detalhe 
 
 ## Brand Commitments
 
-Name "UrbanFlow". No other visual commitment (logo color and dark theme explicitly left open).
+Name "UrbanCare". No other visual commitment (logo color and dark theme explicitly left open).
 
 ## Evidence on Hand
 

@@ -34,6 +34,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Instala dados OCR precisos com versão e checksums fixos.")
     parser.add_argument(
         "--output", type=Path,
-        default=Path.home() / ".cache/urbanflow/tessdata-best",
+        default=Path.home() / ".cache/urbancare/tessdata-best",
     )
     install(parser.parse_args().output)
