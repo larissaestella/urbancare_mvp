@@ -1,4 +1,12 @@
-# UrbanCare
+# Integrantes
+
+- BEATRIZ SILVA PINHEIRO ROCHA – RM553455
+- ENZZO MONTEIRO BARROS SILVA - RM552616
+- IAGO DINIZ FONTES - RM553776
+- LARISSA ESTELLA GONÇALVES DOS SANTOS - RM552695
+- RAFAEL ALVES DO NASCIMENTO - RM553117
+
+# UrbanCare - Global Solution
 
 Abrigos de ônibus inteligentes que medem a lotação de forma anônima, disparam ônibus extras antes da
 superlotação e apontam pontos inseguros. Este repositório contém o protótipo completo (API, simulador e
@@ -30,44 +38,6 @@ docker compose up -d --build
 - API: <http://localhost:8000/docs>
 
 Para zerar o banco: `docker compose down -v`.
-
-## Publicação (Google Cloud Run + Neon)
-
-O `Dockerfile` da raiz gera **uma única imagem**, com o front compilado, a API em `/api` e o simulador, tudo
-no mesmo endereço. A imagem lê a porta da variável `PORT`. O banco é um Postgres gerenciado no
-[Neon](https://neon.tech). O schema usa TimescaleDB quando disponível e funciona sem ele, criando as tabelas
-na inicialização.
-
-1. **Banco:** crie um projeto no Neon (Postgres 16) e copie a *pooled connection string*, com
-   `?sslmode=require`.
-2. **Serviço:** no console do Google Cloud, vá em **Cloud Run → Implantar contêiner → Implantar
-   continuamente a partir de um repositório** e conecte este repositório pelo Cloud Build, com branch
-   `^main$`, tipo **Dockerfile** e origem `/Dockerfile`.
-3. **Configuração:**
-   - região `us-central1`, acesso público e faturamento por solicitação;
-   - instâncias de 0 a 1, 2 CPU, 2 GiB de memória e tempo limite de 300 s;
-   - variáveis `DATABASE_URL` (a string do Neon) e `RUN_SIM=1`.
-4. **Permissões:** se o build falhar com `developerconnect.gitRepositoryLinks.fetchReadToken`, dê à conta de
-   serviço do gatilho os papéis *Developer Connect Read Token Accessor*, *Logs Writer*, *Artifact Registry
-   Writer*, *Cloud Run Admin* e *Service Account User*, e execute o gatilho de novo.
-
-Cada push no `main` gera uma nova revisão. Pelo terminal, o equivalente é:
-
-```bash
-gcloud run deploy urbancare --source . --region us-central1 --allow-unauthenticated \
-  --cpu 2 --memory 2Gi --timeout 300 --min-instances 0 --max-instances 1 \
-  --set-env-vars "RUN_SIM=1,DATABASE_URL=postgresql://…?sslmode=require"
-```
-
-Por que não um plano gratuito com 0,1 CPU, como o do Render: nessa CPU, o OCR de uma foto real ultrapassa o
-tempo limite de 20 s por chamada do Tesseract. Com 0,5 CPU, cada foto leva de 19 a 29 s; com 2 CPU, poucos
-segundos. O `render.yaml` continua no repositório como alternativa para planos pagos.
-
-Com 0 instâncias mínimas, a primeira visita após um período sem uso tem partida a frio de alguns segundos. O
-simulador só gera dados enquanto há requisições.
-
-Para testar a imagem localmente:
-`docker build -t urbancare . && docker run -p 8090:8000 -e DATABASE_URL=… urbancare`.
 
 ## Extração Automática de Endereços
 
